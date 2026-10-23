@@ -708,7 +708,7 @@ function step(dt){
   // outrunning fair platforming. It starts noticeably quicker and ramps
   // steadily with survival time and height, with a firm late-run cap.
   wallSpeed=Math.min(
-    125,
+    100,
     70+elapsed*.44+Math.floor(runHeight/300)*2.4
   );
 
