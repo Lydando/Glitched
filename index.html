@@ -31,7 +31,9 @@ const ctx=canvas.getContext('2d');
 let W=innerWidth,H=innerHeight,DPR=1;
 
 function resize(){
-  DPR=Math.min(devicePixelRatio||1,2);
+  // Keep high-DPI sharpness while avoiding a 2x backing store on phones.
+  // DPR 1.5 cuts the pixel workload by 44% versus DPR 2, with little visible loss.
+  DPR=Math.min(devicePixelRatio||1,('ontouchstart' in window || innerWidth<900)?1.5:2);
   W=innerWidth;
   H=innerHeight;
   canvas.width=Math.floor(W*DPR);
@@ -1037,8 +1039,9 @@ function draw(){
       const shift=(noise(seed+3)-.5)*(3+fracture*23+voidness*30);
       const gw=viewW*(.12+noise(seed+4)*.58);
       const gx=noise(seed+5)*Math.max(1,viewW-gw);
+      // Do not draw the canvas onto itself here: that forces an expensive
+      // full-canvas operation for every glitch tear on mobile GPUs.
       ctx.globalAlpha=.25+intensity*.4;
-      ctx.drawImage(canvas,0,0); // deliberately no-op fallback avoided below
       ctx.fillStyle=noise(seed+6)>.5
         ?`rgba(48,226,247,${.025+intensity*.045})`
         :`rgba(255,44,139,${.025+intensity*.055})`;
@@ -1096,64 +1099,123 @@ function draw(){
     ctx.fillRect(x+5,0,2,vh);
   }
 
-  // World objects.
+  // World objects: detailed industrial ledges and climbable power conduits.
   ctx.save();
   ctx.translate(0,-cam);
 
-  for(const w of wires){
-    ctx.strokeStyle='rgba(74,222,239,.18)';
-    ctx.lineWidth=7;
-    ctx.beginPath();
-    ctx.moveTo(w.x,w.y1);
-    ctx.lineTo(w.x,w.y2);
-    ctx.stroke();
-
-    ctx.strokeStyle='#4bd8e7';
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(w.x,w.y1);
-    ctx.lineTo(w.x,w.y2);
-    ctx.stroke();
-
-    ctx.fillStyle='#b4ffff';
-
-    for(let y=w.y1+12;y<w.y2;y+=26){
-      ctx.fillRect(w.x-2,y,4,3);
+  // Shaft walls: layered retaining panels, structural ribs, service channels and
+  // intermittent cyan conduits. Entirely decorative; collision bounds unchanged.
+  const shaftW=world.width;
+  for(const side of [0,1]){
+    const left=side===0, edgeX=left?24:shaftW-48;
+    const innerX=left?edgeX+7:edgeX+17;
+    const wallGrad=ctx.createLinearGradient(left?0:shaftW-48,0,left?48:shaftW,0);
+    wallGrad.addColorStop(0,'rgba(3,9,20,.98)');
+    wallGrad.addColorStop(.7,'rgba(10,29,45,.94)');
+    wallGrad.addColorStop(1,'rgba(18,52,69,.72)');
+    ctx.fillStyle=wallGrad;ctx.fillRect(edgeX,-cam-180,24,2200);
+    ctx.fillStyle='rgba(52,113,139,.34)';ctx.fillRect(left?edgeX+22:edgeX,-cam-180,2,2200);
+    ctx.fillStyle='rgba(1,5,14,.9)';ctx.fillRect(innerX,-cam-180,3,2200);
+    for(let yy=Math.floor((cam-220)/96)*96;yy<cam+760;yy+=96){
+      const sy=yy;
+      ctx.fillStyle='rgba(23,59,77,.72)';ctx.fillRect(edgeX+(left?4:15),sy,5,62);
+      ctx.fillStyle='rgba(68,141,161,.42)';ctx.fillRect(edgeX+(left?8:12),sy+8,3,38);
+      ctx.fillStyle='rgba(2,8,18,.95)';ctx.fillRect(edgeX+(left?13:5),sy+18,5,24);
+      for(let bolt=0;bolt<3;bolt++){
+        ctx.fillStyle='rgba(112,171,188,.65)';ctx.fillRect(edgeX+(left?5:16),sy+9+bolt*18,2,2);
+      }
+      if((Math.floor(yy/96)+(left?0:2))%3===0){
+        ctx.fillStyle='rgba(51,225,245,.42)';ctx.fillRect(edgeX+(left?18:3),sy+29,2,20);
+        ctx.fillStyle='rgba(64,218,242,.12)';ctx.fillRect(edgeX+(left?14:0),sy+27,8,24);
+      }
+      if(fracture>.12 && (Math.floor(yy/96)+(left?1:0))%4===0){
+        ctx.fillStyle='rgba(255,43,175,.52)';ctx.fillRect(edgeX+(left?17:2),sy+54,5,2);
+        ctx.fillStyle='rgba(255,43,175,.2)';ctx.fillRect(edgeX+(left?12:0),sy+52,10,6);
+      }
     }
+  }
+
+  for(const w of wires){
+    // Soft halo, segmented armored cable, inner energy filament.
+    ctx.save();
+    ctx.shadowColor='#18dff5';ctx.shadowBlur=10;
+    ctx.strokeStyle='rgba(38,207,235,.17)';ctx.lineWidth=11;
+    ctx.beginPath();ctx.moveTo(w.x,w.y1);ctx.lineTo(w.x,w.y2);ctx.stroke();ctx.shadowBlur=0;
+    ctx.strokeStyle='#071522';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(w.x,w.y1);ctx.lineTo(w.x,w.y2);ctx.stroke();
+    ctx.strokeStyle='rgba(91,135,158,.92)';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(w.x-1,w.y1);ctx.lineTo(w.x-1,w.y2);ctx.stroke();
+    ctx.strokeStyle='#39e8fa';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(w.x+1,w.y1+2);ctx.lineTo(w.x+1,w.y2-2);ctx.stroke();
+    for(let y=w.y1+10;y<w.y2;y+=28){
+      // Clamp collar and fasteners.
+      ctx.fillStyle='#07101d';ctx.fillRect(w.x-7,y-3,14,8);
+      ctx.fillStyle='#31576b';ctx.fillRect(w.x-6,y-2,12,5);
+      ctx.fillStyle='rgba(108,184,203,.85)';ctx.fillRect(w.x-5,y-2,2,4);ctx.fillRect(w.x+3,y-2,2,4);
+      ctx.fillStyle='#8df8ff';ctx.fillRect(w.x-1,y-1,2,3);
+    }
+    // Exposed split filaments and occasional corruption, more frequent aloft.
+    ctx.strokeStyle=`rgba(69,231,249,${.28+fracture*.25})`;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(w.x-2,w.y1+18);ctx.lineTo(w.x-5,w.y1+28);ctx.lineTo(w.x-2,w.y1+37);ctx.stroke();
+    if(fracture>.22){
+      ctx.strokeStyle=`rgba(255,46,190,${.28+fracture*.45})`;ctx.lineWidth=1.5;
+      const gy=w.y1+((Math.floor(elapsed*5+w.x)%5)*7)+24;
+      ctx.beginPath();ctx.moveTo(w.x-5,gy);ctx.lineTo(w.x+4,gy+5);ctx.lineTo(w.x-3,gy+12);ctx.stroke();
+      ctx.fillStyle='rgba(255,46,190,.75)';ctx.fillRect(w.x+4,gy+3,3,2);
+    }
+    ctx.restore();
   }
 
   for(const p of platforms){
     if(p.dead)continue;
-
-    let flick=
-      p.type==='unstable'&&
-      p.crack>0&&
-      Math.sin(performance.now()*.04)>0
-        ?0.3
-        :1;
-
-    ctx.globalAlpha=flick;
-    ctx.fillStyle='#122d40';
-    ctx.fillRect(p.x,p.y,p.w,p.h);
-
-    ctx.fillStyle=
-      p.type==='unstable'?'#e58bff':'#4fd9e7';
-
-    ctx.fillRect(p.x,p.y,p.w,3);
-
-    ctx.fillStyle='rgba(91,236,249,.14)';
-    ctx.fillRect(p.x+5,p.y+5,p.w-10,2);
-
-    if(p.type==='unstable'){
-      ctx.strokeStyle='rgba(255,144,229,.65)';
-      ctx.beginPath();
-      ctx.moveTo(p.x+p.w*.4,p.y+3);
-      ctx.lineTo(p.x+p.w*.46,p.y+10);
-      ctx.lineTo(p.x+p.w*.53,p.y+4);
-      ctx.stroke();
+    const pink=p.type==='unstable';
+    const triggered=pink&&p.crack>0;
+    const flick=triggered&&Math.sin(performance.now()*.04)>0?.45:1;
+    ctx.save();ctx.globalAlpha=flick;
+    const accent=pink?'#ff42d5':'#43eaff';
+    // Ground shadow and multi-layer metal chassis.
+    ctx.fillStyle='rgba(0,0,0,.38)';ctx.fillRect(p.x+3,p.y+7,p.w,p.h+9);
+    ctx.fillStyle=pink?'#25132d':'#0b1b2a';ctx.fillRect(p.x,p.y+2,p.w,p.h+5);
+    ctx.fillStyle=pink?'#492044':'#17374a';ctx.fillRect(p.x+2,p.y+4,p.w-4,5);
+    ctx.fillStyle=pink?'#170f22':'#07111e';ctx.fillRect(p.x+4,p.y+9,p.w-8,7);
+    // Top landing strip remains clean and easy to read.
+    ctx.shadowColor=accent;ctx.shadowBlur=triggered?5:9;
+    ctx.fillStyle=accent;ctx.fillRect(p.x,p.y,p.w,3);ctx.shadowBlur=0;
+    ctx.fillStyle=pink?'rgba(255,87,220,.25)':'rgba(91,236,249,.22)';ctx.fillRect(p.x+4,p.y+4,p.w-8,2);
+    // Repeated panel seams, inset plates and rivets.
+    for(let xx=p.x+12;xx<p.x+p.w-8;xx+=25){
+      ctx.fillStyle=pink?'rgba(255,115,224,.5)':'rgba(107,176,198,.48)';ctx.fillRect(xx,p.y+6,1,7);
+      ctx.fillStyle=accent;ctx.globalAlpha=flick*.72;ctx.fillRect(xx+4,p.y+5,2,2);ctx.globalAlpha=flick;
+      ctx.fillStyle='rgba(0,4,12,.8)';ctx.fillRect(xx+7,p.y+11,Math.min(12,p.x+p.w-xx-10),2);
     }
-
-    ctx.globalAlpha=1;
+    // Underside braces and hanging service modules add cinematic depth.
+    ctx.fillStyle=pink?'rgba(255,56,202,.65)':'rgba(57,195,222,.58)';
+    ctx.fillRect(p.x+8,p.y+p.h+4,Math.max(10,p.w*.24),2);
+    ctx.fillRect(p.x+p.w*.67,p.y+p.h+4,Math.max(8,p.w*.19),2);
+    ctx.fillStyle='#07111d';ctx.fillRect(p.x+p.w*.22,p.y+p.h+5,Math.max(12,p.w*.18),5);
+    ctx.fillStyle=pink?'rgba(255,60,205,.65)':'rgba(65,226,246,.65)';ctx.fillRect(p.x+p.w*.25,p.y+p.h+6,Math.max(8,p.w*.1),1);
+    // Tiny brackets under the deck.
+    for(const bx of [p.x+7,p.x+p.w-12]){
+      ctx.fillStyle='#365a6d';ctx.fillRect(bx,p.y+p.h,5,5);
+      ctx.fillStyle='rgba(149,213,226,.7)';ctx.fillRect(bx+1,p.y+p.h+1,1,2);
+    }
+    if(pink){
+      ctx.strokeStyle='rgba(255,147,236,.9)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(p.x+p.w*.28,p.y+2);ctx.lineTo(p.x+p.w*.34,p.y+8);ctx.lineTo(p.x+p.w*.42,p.y+3);ctx.lineTo(p.x+p.w*.48,p.y+10);ctx.stroke();
+      if(triggered){
+        // Pixel-shard breakup during the existing disappearance timer.
+        const progress=clamp(1-p.crack/.55,0,1);
+        ctx.globalAlpha=clamp(1-progress*1.25,0,1)*.9;
+        ctx.fillStyle='#ff55db';
+        for(let i=0;i<10;i++){
+          const seed=i*17+p.x*3+p.y;
+          const sx=p.x+((seed*13)%Math.max(1,p.w));
+          const sy=p.y+((i%4)*3)-progress*(8+(i%5)*5);
+          ctx.fillRect(sx,sy,3+(i%3)*2,1+(i%2)*2);
+        }
+      }
+    }else{
+      ctx.strokeStyle='rgba(78,220,240,.48)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(p.x+8,p.y+12);ctx.lineTo(p.x+18,p.y+9);ctx.lineTo(p.x+26,p.y+12);ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // Rising corruption wall.
