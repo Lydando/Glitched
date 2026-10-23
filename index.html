@@ -782,45 +782,147 @@ function draw(){
   const vh=562;
   const cam=cameraY;
 
-  // Background.
+  // Procedural abandoned digital world. All scenery is decorative and
+  // height-reactive; gameplay objects are drawn afterward at full contrast.
+  const decay=clamp(runHeight/3000,0,1);
+  const fracture=clamp((runHeight-850)/1900,0,1);
+  const voidness=clamp((runHeight-2100)/1500,0,1);
   let g=ctx.createLinearGradient(0,0,0,vh);
-
-  g.addColorStop(0,'#050914');
-  g.addColorStop(.58,'#071425');
-  g.addColorStop(1,'#0b1021');
-
+  g.addColorStop(0,'#040711');
+  g.addColorStop(.48,decay<.5?'#071626':'#090e1d');
+  g.addColorStop(1,voidness>.5?'#05050d':'#0a1222');
   ctx.fillStyle=g;
   ctx.fillRect(0,0,viewW,vh);
 
-  // Atmospheric grid and server silhouettes.
+  // Distant haze gives the structures depth without obscuring platforms.
+  const haze=ctx.createRadialGradient(viewW*.52,vh*.42,8,viewW*.52,vh*.42,viewW*.72);
+  haze.addColorStop(0,`rgba(20,91,117,${.12*(1-voidness)+.025})`);
+  haze.addColorStop(.65,`rgba(9,26,49,${.15*(1-voidness)})`);
+  haze.addColorStop(1,'rgba(1,3,9,0)');
+  ctx.fillStyle=haze;
+  ctx.fillRect(0,0,viewW,vh);
+
+  // Stable deterministic pseudo-randomness: the scenery doesn't flicker as it scrolls.
+  const noise=(n)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
+  const cycle=680;
+
+  // Far skyline: huge abandoned towers, slow parallax, faint window lights.
   ctx.save();
-  ctx.translate(0,-(cam*.12%180));
-
-  for(let y=-180;y<vh+180;y+=90){
-    ctx.strokeStyle='rgba(57,133,173,.09)';
-    ctx.lineWidth=1;
-    ctx.beginPath();
-    ctx.moveTo(0,y);
-    ctx.lineTo(viewW,y);
-    ctx.stroke();
-  }
-
-  for(let i=0;i<Math.ceil(viewW/118)+1;i++){
-    let x=i*118+((i%2)*28);
-
-    ctx.fillStyle='rgba(14,35,57,.7)';
-    ctx.fillRect(x,0,18,vh);
-
-    ctx.strokeStyle='rgba(63,197,219,.12)';
-    ctx.strokeRect(x+4,0,10,vh);
-
-    for(let y=40;y<vh;y+=85){
-      ctx.fillStyle='rgba(69,224,245,.14)';
-      ctx.fillRect(x+7,y,4,2);
+  ctx.translate(0,-((cam*.10)%cycle));
+  for(let layer=-1;layer<2;layer++){
+    const yOffset=layer*cycle;
+    for(let i=0;i<Math.ceil(viewW/155)+3;i++){
+      const seed=i+layer*37;
+      const x=i*155-55+(noise(seed+4)-.5)*58;
+      const bw=45+noise(seed+8)*82;
+      const bh=250+noise(seed+12)*360;
+      const y=vh-bh+yOffset;
+      ctx.fillStyle=`rgba(${Math.round(7+noise(seed)*5)},${Math.round(17+noise(seed+1)*12)},${Math.round(31+noise(seed+2)*16)},${.5*(1-fracture*.55)})`;
+      ctx.fillRect(x,y,bw,bh);
+      ctx.strokeStyle=`rgba(48,151,180,${.12*(1-fracture)+.025})`;
+      ctx.lineWidth=1;
+      ctx.strokeRect(x+.5,y+.5,bw-1,bh-1);
+      // Sparse, mostly dead windows.
+      for(let wy=y+18;wy<vh+yOffset;wy+=22){
+        for(let wx=x+8;wx<x+bw-5;wx+=13){
+          if(noise(seed+wx*.17+wy*.031)>.79){
+            ctx.fillStyle=`rgba(72,205,224,${(.06+noise(seed+wx+wy)*.12)*(1-fracture*.8)})`;
+            ctx.fillRect(wx,wy,3,2);
+          }
+        }
+      }
     }
   }
-
   ctx.restore();
+
+  // Mid-distance megastructure ribs, disconnected bridges and circuit traces.
+  ctx.save();
+  ctx.translate(0,-((cam*.24)%cycle));
+  for(let layer=-1;layer<2;layer++){
+    const yOffset=layer*cycle;
+    for(let i=0;i<Math.ceil(viewW/230)+2;i++){
+      const seed=1000+i+layer*43;
+      const x=i*230-90+(noise(seed)-.5)*80;
+      const y=35+noise(seed+2)*390+yOffset;
+      const h=90+noise(seed+3)*210;
+      const w=24+noise(seed+4)*65;
+      ctx.fillStyle=`rgba(7,17,31,${.64-fracture*.12})`;
+      ctx.fillRect(x,y,w,h);
+      ctx.strokeStyle=`rgba(48,194,215,${.12*(1-fracture)+.025})`;
+      ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+      // Architectural seams gradually break into separated fragments.
+      ctx.strokeStyle=`rgba(66,178,204,${.12*(1-fracture)+.025})`;
+      ctx.beginPath();ctx.moveTo(x+w*.5,y+8);ctx.lineTo(x+w*.5,y+h-8);ctx.stroke();
+      if(noise(seed+5)>.28){
+        const bridgeY=y+25+noise(seed+6)*Math.max(10,h-35);
+        ctx.fillStyle=`rgba(11,32,48,${.65-fracture*.2})`;
+        ctx.fillRect(x-35,bridgeY,w+70,4);
+        ctx.fillStyle=`rgba(63,208,225,${.2*(1-fracture)+.025})`;
+        ctx.fillRect(x-35,bridgeY,w+70,1);
+      }
+      if(noise(seed+7)<fracture){
+        ctx.fillStyle=`rgba(10,18,31,${.8})`;
+        ctx.fillRect(x+w*.35,y+h*.38,w*.7,Math.max(12,h*.18));
+      }
+    }
+  }
+  ctx.restore();
+
+  // Nearer floating fragments and broken wireframe outlines become more common higher up.
+  ctx.save();
+  ctx.translate(0,-((cam*.43)%cycle));
+  const fragmentCount=7+Math.floor(fracture*13);
+  for(let layer=-1;layer<2;layer++){
+    for(let i=0;i<fragmentCount;i++){
+      const seed=2300+i+layer*59;
+      const x=noise(seed)*viewW;
+      const y=noise(seed+1)*cycle+layer*cycle;
+      const size=5+noise(seed+2)*(10+fracture*18);
+      const drift=Math.sin(elapsed*.35+seed)*4;
+      ctx.save();ctx.translate(x+drift,y);ctx.rotate((noise(seed+3)-.5)*.8);
+      ctx.fillStyle=`rgba(17,32,48,${.24+fracture*.12})`;
+      ctx.fillRect(-size,-size*.45,size*2,size*.9);
+      ctx.strokeStyle=`rgba(62,193,216,${.13*(1-fracture)+.035})`;
+      ctx.strokeRect(-size,-size*.45,size*2,size*.9);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+
+  // Corruption appears only as the world starts failing: restrained magenta seams and glitches.
+  if(fracture>0){
+    ctx.save();
+    const alpha=.025+fracture*.085;
+    for(let i=0;i<Math.floor(2+fracture*7);i++){
+      const seed=3900+i+Math.floor(cam/130)*11;
+      const x=noise(seed)*viewW;
+      const y=noise(seed+1)*vh;
+      const ww=12+noise(seed+2)*85;
+      ctx.fillStyle=`rgba(225,48,112,${alpha*(.4+noise(seed+3)*.6)})`;
+      ctx.fillRect(x,y,ww,1+noise(seed+4)*3);
+    }
+    if(voidness>0){
+      ctx.strokeStyle=`rgba(176,55,132,${voidness*.12})`;
+      ctx.lineWidth=1;
+      for(let i=0;i<4;i++){
+        const seed=4800+i;
+        const x=noise(seed)*viewW;
+        const y=noise(seed+1)*vh;
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(noise(seed+2)-.5)*75,y+25+noise(seed+3)*65);ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Sparse ambient dust, deterministic positions with gentle motion.
+  for(let i=0;i<24;i++){
+    const seed=5700+i;
+    const x=noise(seed)*viewW;
+    const y=(noise(seed+1)*vh+elapsed*(5+noise(seed+2)*8))%vh;
+    const a=(.08+noise(seed+3)*.14)*(1-voidness*.5);
+    ctx.fillStyle=`rgba(105,218,232,${a})`;
+    ctx.fillRect(x,y,1+noise(seed+4),1+noise(seed+5));
+  }
 
   // Side rails.
   for(let x of [24,world.width-48]){
