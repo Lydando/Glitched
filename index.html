@@ -20,7 +20,7 @@ canvas{display:block;width:100%;height:100%;outline:0;touch-action:none}
 <body>
 <canvas id="game" aria-label="Glitch game"></canvas>
 <div id="hint">A / D or ← / → · Space jump · Shift dash · W/S on wires · R restart</div>
-<div id="rotate"><div><strong>Rotate your device</strong>Glitch is designed for landscape play.</div></div>
+<div id="rotate"><div><strong>Rotate your device</strong>Glitched is designed for landscape play.</div></div>
 
 <script>
 (()=>{'use strict';
@@ -1218,22 +1218,21 @@ function draw(){
     ctx.restore();
   }
 
-  // Rising server-virus: corrupted data, not physical lava. Keep the main
-  // silhouette dark so platforms and the player remain easy to read.
+  // Rising server-virus: a near-black mass made of violent vertical data streaks.
+  // The silhouette and gameplay/collision position remain unchanged.
   const wallScreen=wallY;
   const wallLeft=24, wallRight=world.width-48;
   const wallDepth=1600;
   const corruption=clamp(runHeight/2600,0,1);
   const pulse=.5+.5*Math.sin(elapsed*2.1);
 
-  // Low-cost atmospheric tint inside the infected region.
-  ctx.fillStyle=`rgba(120,18,120,${.075+corruption*.055})`;
+  // Deep black-purple body, with only a restrained atmospheric undertone.
+  ctx.fillStyle='rgba(30,5,38,.22)';
   ctx.fillRect(wallLeft,wallScreen-12,wallRight-wallLeft,wallDepth);
 
-  // Main mass: near-black corrupted data with a jagged, shifting boundary.
   ctx.beginPath();
   ctx.moveTo(wallLeft,wallScreen);
-  for(let x=wallLeft;x<=wallRight;x+=18){
+  for(let x=wallLeft;x<=wallRight;x+=12){
     const wave=Math.sin(x*.073+elapsed*1.7)*4+Math.sin(x*.019-elapsed*.8)*7;
     const glitch=Math.sin(x*.31+Math.floor(elapsed*7)*1.7)*(2+corruption*4);
     ctx.lineTo(x,wallScreen+wave+glitch);
@@ -1241,79 +1240,92 @@ function draw(){
   ctx.lineTo(wallRight,wallScreen+wallDepth);
   ctx.lineTo(wallLeft,wallScreen+wallDepth);
   ctx.closePath();
-  ctx.fillStyle='rgba(7,3,18,.94)';
+  ctx.fillStyle='rgba(2,2,9,.98)';
   ctx.fill();
 
-  // Animated cyan/pink corruption streaks. They travel through the dark mass,
-  // fracture into displaced segments, and flicker independently of the wall edge.
+  // Vertical streaks are the substance of the wall, not decoration laid over it.
+  // Their broken segments, varied widths and shifting offsets evoke corrupted data tearing upward.
   ctx.save();
-  for(let i=0;i<25;i++){
-    const seed=i*67.31;
-    const travel=elapsed*(18+(i%6)*7);
-    const x=wallLeft+((seed+travel*1.7)%(wallRight-wallLeft));
-    const y=wallScreen+20+((i*113+travel*2.4)%(wallDepth-45));
-    const len=12+(i%7)*8;
-    const flicker=(Math.sin(elapsed*11+i*4.1)+1)*.5;
-    const cyan=i%2===0;
-    const bright=(i%5===0)?(.7+flicker*.3):(.28+flicker*.28);
-    ctx.globalAlpha=bright;
-    ctx.lineWidth=i%6===0?2:1;
-    ctx.strokeStyle=cyan?'#42f5ff':(i%3===0?'#b64dff':'#ff4bd8');
-    ctx.beginPath();
-    ctx.moveTo(x,y);
-    ctx.lineTo(x+len*.35,y+(i%3-1)*2);
-    if(i%4!==0) ctx.lineTo(x+len*.58,y-((i%4)+2));
-    ctx.lineTo(x+len,y+(i%2===0?1:-2));
-    ctx.stroke();
-    // A brief RGB displacement makes selected streaks look torn by corruption.
-    if(i%4===0 && flicker>.58){
-      ctx.globalAlpha=.65;
-      ctx.fillStyle=cyan?'#ff4bd8':'#42f5ff';
-      ctx.fillRect(x+len*.45+((Math.floor(elapsed*13+i)%3)-1)*5,y-3,4+(i%3)*2,2);
+  for(let i=0;i<82;i++){
+    const seed=i*37.719;
+    const baseX=wallLeft+((i*47.31)%(wallRight-wallLeft));
+    const drift=Math.sin(elapsed*(1.7+(i%7)*.21)+seed)*((i%5)+2);
+    const glitchTick=Math.floor(elapsed*(5+(i%4)*2)+(seed%9));
+    const tear=(glitchTick%11===0)?Math.sin(glitchTick*8.13+i)*18:0;
+    const x=baseX+drift+tear;
+    const width=(i%9===0?4.5:(i%4===0?2.8:(i%3===0?1.8:1.1)));
+    const speed=36+(i%8)*17;
+    const offset=(seed*13+elapsed*speed*3)%(wallDepth+180);
+    const y=wallScreen-80+offset;
+    const len=90+(i%11)*24+(i%3===0?45:0);
+    const alpha=.22+(i%5)*.095+pulse*.08;
+    const color=(i%7===0)?`rgba(255,53,211,${alpha})`:
+      (i%5===0)?`rgba(191,65,255,${alpha})`:
+      (i%3===0)?`rgba(255,105,224,${alpha*.9})`:
+      `rgba(39,229,255,${alpha*.78})`;
+    ctx.fillStyle=color;
+    // Split each streak into irregular fragments so it looks torn and alive.
+    let cursor=y;
+    let segment=0;
+    while(cursor<y+len){
+      const segLen=8+((i*7+segment*13)%27);
+      const gap=((i+segment)%4===0)?7+((i+segment)%13):2;
+      const shift=((glitchTick+segment*3+i)%9===0)?((segment%2)?-12:15):0;
+      ctx.globalAlpha=1;
+      ctx.fillRect(x+shift,cursor,width,Math.min(segLen,y+len-cursor));
+      if((i+segment)%5===0){
+        ctx.fillStyle='rgba(2,2,9,.94)';
+        ctx.fillRect(x-3+shift,cursor+segLen*.45,width+8,2+((i+segment)%4));
+        ctx.fillStyle=color;
+      }
+      cursor+=segLen+gap;
+      segment++;
     }
-    if(i%3===0){
-      ctx.globalAlpha=.2+flicker*.22;
-      ctx.fillStyle=cyan?'#42f5ff':'#ff4bd8';
-      ctx.fillRect(x+len*.2,y+4,2+(i%3),1+(i%2));
+    // Occasional sharp bright data splinters beside the main vertical column.
+    if(i%6===0){
+      ctx.fillStyle=i%2?'rgba(255,65,220,.88)':'rgba(65,244,255,.82)';
+      const shardY=wallScreen+((seed*5+elapsed*(95+i%4*30))%(wallDepth-35));
+      ctx.fillRect(x-5+Math.sin(elapsed*9+i)*8,shardY,1.5,12+(i%4)*7);
+      ctx.fillRect(x+3,shardY+18,2,4+(i%3)*3);
     }
   }
   ctx.restore();
 
-  // Scanlines and missing-data blocks interrupt the streaks as they glitch.
-  for(let i=0;i<13;i++){
-    const travel=elapsed*(24+(i%4)*11);
-    const y=wallScreen+14+((i*137+travel)%(wallDepth-28));
-    const x=wallLeft+((i*151+Math.sin(elapsed*2.8+i)*49)%(wallRight-wallLeft-85));
-    const width=20+(i%5)*15;
-    ctx.globalAlpha=.22+((Math.sin(elapsed*9+i*2)+1)*.5)*.32;
-    ctx.fillStyle=i%2===0?'#42f5ff':'#ff4bd8';
-    ctx.fillRect(x,y,width,1+(i%3===0?2:0));
-    ctx.fillStyle='rgba(2,1,10,.92)';
-    ctx.fillRect(x+width*.4,y-2,width*.35,4+(i%2)*2);
-    if(i%3===0){
-      ctx.fillStyle='rgba(240,70,230,.4)';
-      ctx.fillRect(x+width+5,y+3,7,2);
+  // Sparse horizontal signal tears interrupt the vertical flow.
+  for(let i=0;i<11;i++){
+    const y=wallScreen+18+((i*137+elapsed*(42+i%3*17))%(wallDepth-30));
+    const x=wallLeft+((i*151+Math.sin(elapsed*1.8+i)*65)%(wallRight-wallLeft-90));
+    const width=22+(i%5)*19;
+    ctx.fillStyle=i%3===0?'rgba(255,54,218,.62)':'rgba(52,224,255,.4)';
+    ctx.fillRect(x,y,width,1+(i%3));
+    ctx.fillStyle='rgba(2,2,9,.95)';
+    ctx.fillRect(x+width*.35,y-3,width*.42,5);
+    if(i%2===0){
+      ctx.fillStyle='rgba(255,73,222,.78)';
+      ctx.fillRect(x+width*.68,y+4,8,2);
     }
   }
-  ctx.globalAlpha=1;
 
-  // Corrupted edge: magenta core with occasional violet interference, no
-  // expensive blur. A restrained pulse signals danger without washing out play.
-  ctx.strokeStyle=`rgba(255,65,220,${.72+pulse*.2})`;
-  ctx.lineWidth=1.8+corruption*.45;
+  // A jagged magenta/violet rim anchors the wall's identity.
+  ctx.strokeStyle=`rgba(255,45,211,${.8+pulse*.18})`;
+  ctx.lineWidth=2.2+corruption*.5;
+  ctx.shadowColor='#f51ed0';
+  ctx.shadowBlur=10;
   ctx.beginPath();
-  for(let x=wallLeft;x<=wallRight;x+=8){
+  for(let x=wallLeft;x<=wallRight;x+=6){
     const wave=Math.sin(x*.073+elapsed*1.7)*4+Math.sin(x*.019-elapsed*.8)*7;
     const glitch=Math.sin(x*.31+Math.floor(elapsed*7)*1.7)*(2+corruption*4);
-    const y=wallScreen+wave+glitch;
+    const tear=(Math.floor(x/31+elapsed*8)%7===0)?Math.sin(x*2.1+elapsed*19)*5:0;
+    const y=wallScreen+wave+glitch+tear;
     if(x===wallLeft)ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
-  ctx.strokeStyle='rgba(116,67,255,.55)';
-  ctx.lineWidth=1;
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(128,62,255,.78)';
+  ctx.lineWidth=1.2;
   ctx.beginPath();
-  for(let x=wallLeft;x<=wallRight;x+=24){
-    const y=wallScreen+8+Math.sin(x*.041-elapsed*2.2)*5;
+  for(let x=wallLeft;x<=wallRight;x+=15){
+    const y=wallScreen+7+Math.sin(x*.041-elapsed*2.2)*5+Math.sin(x*.2+elapsed*4)*2;
     if(x===wallLeft)ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
