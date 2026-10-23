@@ -782,145 +782,217 @@ function draw(){
   const vh=562;
   const cam=cameraY;
 
-  // Procedural abandoned digital world. All scenery is decorative and
-  // height-reactive; gameplay objects are drawn afterward at full contrast.
+  // Detailed procedural megastructure. Architecture is drawn from reusable
+  // deterministic modules so windows, damage and bridge pieces stay stable
+  // while the camera scrolls. Decorative only; gameplay geometry is untouched.
   const decay=clamp(runHeight/3000,0,1);
   const fracture=clamp((runHeight-850)/1900,0,1);
   const voidness=clamp((runHeight-2100)/1500,0,1);
-  let g=ctx.createLinearGradient(0,0,0,vh);
-  g.addColorStop(0,'#040711');
-  g.addColorStop(.48,decay<.5?'#071626':'#090e1d');
-  g.addColorStop(1,voidness>.5?'#05050d':'#0a1222');
-  ctx.fillStyle=g;
-  ctx.fillRect(0,0,viewW,vh);
-
-  // Distant haze gives the structures depth without obscuring platforms.
-  const haze=ctx.createRadialGradient(viewW*.52,vh*.42,8,viewW*.52,vh*.42,viewW*.72);
-  haze.addColorStop(0,`rgba(20,91,117,${.12*(1-voidness)+.025})`);
-  haze.addColorStop(.65,`rgba(9,26,49,${.15*(1-voidness)})`);
-  haze.addColorStop(1,'rgba(1,3,9,0)');
-  ctx.fillStyle=haze;
-  ctx.fillRect(0,0,viewW,vh);
-
-  // Stable deterministic pseudo-randomness: the scenery doesn't flicker as it scrolls.
   const noise=(n)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
   const cycle=680;
+  let g=ctx.createLinearGradient(0,0,0,vh);
+  g.addColorStop(0,'#030610');
+  g.addColorStop(.48,decay<.5?'#081a2a':'#080d1b');
+  g.addColorStop(1,voidness>.5?'#04050c':'#0a1726');
+  ctx.fillStyle=g;ctx.fillRect(0,0,viewW,vh);
 
-  // Far skyline: huge abandoned towers, slow parallax, faint window lights.
-  ctx.save();
-  ctx.translate(0,-((cam*.10)%cycle));
+  const haze=ctx.createRadialGradient(viewW*.52,vh*.42,8,viewW*.52,vh*.42,viewW*.72);
+  haze.addColorStop(0,`rgba(20,91,117,${.15*(1-voidness)+.025})`);
+  haze.addColorStop(.65,`rgba(9,26,49,${.18*(1-voidness)})`);
+  haze.addColorStop(1,'rgba(1,3,9,0)');
+  ctx.fillStyle=haze;ctx.fillRect(0,0,viewW,vh);
+
+  // Far towers: facade panels, floor bands, individual windows and antennae.
+  ctx.save();ctx.translate(0,-((cam*.10)%cycle));
   for(let layer=-1;layer<2;layer++){
-    const yOffset=layer*cycle;
-    for(let i=0;i<Math.ceil(viewW/155)+3;i++){
-      const seed=i+layer*37;
-      const x=i*155-55+(noise(seed+4)-.5)*58;
-      const bw=45+noise(seed+8)*82;
-      const bh=250+noise(seed+12)*360;
-      const y=vh-bh+yOffset;
-      ctx.fillStyle=`rgba(${Math.round(7+noise(seed)*5)},${Math.round(17+noise(seed+1)*12)},${Math.round(31+noise(seed+2)*16)},${.5*(1-fracture*.55)})`;
+    const off=layer*cycle;
+    for(let i=0;i<Math.ceil(viewW/178)+3;i++){
+      const seed=100+i+layer*41;
+      const x=i*178-68+(noise(seed)-.5)*48;
+      const bw=66+noise(seed+1)*78;
+      const bh=270+noise(seed+2)*330;
+      const y=vh-bh+off;
+      const alpha=.68-fracture*.35;
+      ctx.fillStyle=`rgba(7,16,30,${alpha})`;
       ctx.fillRect(x,y,bw,bh);
-      ctx.strokeStyle=`rgba(48,151,180,${.12*(1-fracture)+.025})`;
-      ctx.lineWidth=1;
-      ctx.strokeRect(x+.5,y+.5,bw-1,bh-1);
-      // Sparse, mostly dead windows.
-      for(let wy=y+18;wy<vh+yOffset;wy+=22){
-        for(let wx=x+8;wx<x+bw-5;wx+=13){
-          if(noise(seed+wx*.17+wy*.031)>.79){
-            ctx.fillStyle=`rgba(72,205,224,${(.06+noise(seed+wx+wy)*.12)*(1-fracture*.8)})`;
-            ctx.fillRect(wx,wy,3,2);
+      // Offset facade face and heavy corner columns.
+      ctx.fillStyle=`rgba(22,42,59,${.55-fracture*.2})`;
+      ctx.beginPath();ctx.moveTo(x+bw,y+12);ctx.lineTo(x+bw+9,y+3);ctx.lineTo(x+bw+9,y+bh-12);ctx.lineTo(x+bw,y+bh);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(49,99,121,.22)';
+      ctx.fillRect(x+5,y+8,3,bh-16);ctx.fillRect(x+bw-7,y+8,3,bh-16);
+      // Repeating window bays, with dark recesses and a few live/dead lights.
+      const cols=Math.max(2,Math.floor((bw-18)/12));
+      const rows=Math.floor((bh-24)/19);
+      for(let r=0;r<rows;r++){
+        const wy=y+16+r*19;
+        for(let c=0;c<cols;c++){
+          const wx=x+10+c*12;
+          const n=noise(seed+r*19+c*7);
+          ctx.fillStyle=`rgba(0,4,12,${.82})`;ctx.fillRect(wx,wy,7,11);
+          ctx.fillStyle=`rgba(31,69,88,${.55})`;ctx.fillRect(wx+1,wy+1,5,1);
+          if(n>.72){
+            const lit=noise(seed+500+r*13+c*5)>.3;
+            ctx.fillStyle=lit
+              ?`rgba(73,219,235,${(.12+noise(seed+c+r)*.27)*(1-fracture*.65)})`
+              :`rgba(179,102,91,${.10*(1-fracture)})`;
+            ctx.fillRect(wx+1,wy+2,5,7);
           }
+          if(n<.07&&fracture>.05){
+            ctx.strokeStyle=`rgba(104,219,233,${fracture*.28})`;ctx.lineWidth=1;
+            ctx.beginPath();ctx.moveTo(wx,wy+2);ctx.lineTo(wx+3,wy+5);ctx.lineTo(wx+2,wy+10);ctx.stroke();
+          }
+        }
+      }
+      // Floor separators and service modules.
+      for(let fy=y+28;fy<y+bh;fy+=76){
+        ctx.fillStyle='rgba(62,112,135,.22)';ctx.fillRect(x+3,fy,bw-6,2);
+        ctx.fillStyle='rgba(27,55,73,.7)';ctx.fillRect(x+12,fy+4,Math.max(8,bw-28),3);
+      }
+      for(let m=0;m<3;m++){
+        const my=y+45+m*83+noise(seed+m)*12;
+        ctx.fillStyle='rgba(16,35,51,.9)';ctx.fillRect(x-4,my,5,20);
+        ctx.fillStyle='rgba(61,190,211,.24)';ctx.fillRect(x-3,my+3,2,12);
+      }
+      // Roof crown, aerials and dish.
+      ctx.fillStyle='#0a1c2b';ctx.fillRect(x-4,y,bw+8,7);
+      ctx.strokeStyle=`rgba(75,189,211,${.3*(1-fracture)+.05})`;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x+bw*.72,y);ctx.lineTo(x+bw*.72,y-18-noise(seed)*20);ctx.lineTo(x+bw*.82,y-25-noise(seed)*20);ctx.stroke();
+      ctx.beginPath();ctx.arc(x+bw*.25,y-4,5,Math.PI,Math.PI*2);ctx.stroke();
+      // Broken facade bites appear as the world degrades.
+      if(fracture>0){
+        for(let k=0;k<Math.floor(fracture*5);k++){
+          const bx=x+noise(seed+k+60)*bw, by=y+noise(seed+k+70)*bh;
+          ctx.fillStyle='#050a14';ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+8+noise(seed+k)*18,by-3);ctx.lineTo(bx+5,by+8+noise(seed+k+2)*14);ctx.closePath();ctx.fill();
+          ctx.strokeStyle=`rgba(63,211,229,${fracture*.25})`;ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+4,by+9);ctx.stroke();
         }
       }
     }
   }
   ctx.restore();
 
-  // Mid-distance megastructure ribs, disconnected bridges and circuit traces.
-  ctx.save();
-  ctx.translate(0,-((cam*.24)%cycle));
+  // Midground towers and recognisable broken bridges with railings, girders,
+  // hanging cables, deck plates and snapped ends.
+  ctx.save();ctx.translate(0,-((cam*.24)%cycle));
   for(let layer=-1;layer<2;layer++){
-    const yOffset=layer*cycle;
-    for(let i=0;i<Math.ceil(viewW/230)+2;i++){
-      const seed=1000+i+layer*43;
-      const x=i*230-90+(noise(seed)-.5)*80;
-      const y=35+noise(seed+2)*390+yOffset;
-      const h=90+noise(seed+3)*210;
-      const w=24+noise(seed+4)*65;
-      ctx.fillStyle=`rgba(7,17,31,${.64-fracture*.12})`;
-      ctx.fillRect(x,y,w,h);
-      ctx.strokeStyle=`rgba(48,194,215,${.12*(1-fracture)+.025})`;
-      ctx.strokeRect(x+.5,y+.5,w-1,h-1);
-      // Architectural seams gradually break into separated fragments.
-      ctx.strokeStyle=`rgba(66,178,204,${.12*(1-fracture)+.025})`;
-      ctx.beginPath();ctx.moveTo(x+w*.5,y+8);ctx.lineTo(x+w*.5,y+h-8);ctx.stroke();
-      if(noise(seed+5)>.28){
-        const bridgeY=y+25+noise(seed+6)*Math.max(10,h-35);
-        ctx.fillStyle=`rgba(11,32,48,${.65-fracture*.2})`;
-        ctx.fillRect(x-35,bridgeY,w+70,4);
-        ctx.fillStyle=`rgba(63,208,225,${.2*(1-fracture)+.025})`;
-        ctx.fillRect(x-35,bridgeY,w+70,1);
+    const off=layer*cycle;
+    for(let i=0;i<Math.ceil(viewW/245)+2;i++){
+      const seed=1200+i+layer*53;
+      const x=i*245-82+(noise(seed)-.5)*55;
+      const y=25+noise(seed+2)*390+off;
+      const h=120+noise(seed+3)*240;
+      const w=35+noise(seed+4)*50;
+      ctx.fillStyle=`rgba(5,13,25,${.82-fracture*.18})`;ctx.fillRect(x,y,w,h);
+      ctx.fillStyle='rgba(28,52,70,.7)';ctx.fillRect(x+5,y+8,4,h-16);ctx.fillRect(x+w-9,y+8,4,h-16);
+      for(let fy=y+20;fy<y+h;fy+=31){
+        ctx.fillStyle='rgba(47,92,112,.35)';ctx.fillRect(x+3,fy,w-6,2);
+        for(let wx=x+8;wx<x+w-6;wx+=13){
+          ctx.fillStyle=noise(seed+fy+wx)>.65?'rgba(64,210,231,.38)':'rgba(0,4,12,.8)';
+          ctx.fillRect(wx,fy+5,6,9);
+        }
       }
-      if(noise(seed+7)<fracture){
-        ctx.fillStyle=`rgba(10,18,31,${.8})`;
-        ctx.fillRect(x+w*.35,y+h*.38,w*.7,Math.max(12,h*.18));
+      // External cross-bracing.
+      ctx.strokeStyle=`rgba(54,131,154,${.34-fracture*.12})`;ctx.lineWidth=2;
+      for(let by=y+18;by<y+h-20;by+=42){
+        ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x+w,by+40);ctx.moveTo(x+w,by);ctx.lineTo(x,by+40);ctx.stroke();
+      }
+      // Bridge span: deck slabs are separated by a real gap, with broken rails.
+      if(noise(seed+5)>.15){
+        const by=y+35+noise(seed+6)*Math.max(15,h-60);
+        const span=75+noise(seed+7)*95;
+        const gap=fracture>0?8+noise(seed+8)*(10+fracture*35):0;
+        const left=span*.52-gap/2,right=span*.48-gap/2;
+        ctx.fillStyle='rgba(7,20,34,.95)';ctx.fillRect(x-span,by,left,9);ctx.fillRect(x+w,by,right,9);
+        ctx.fillStyle='rgba(48,105,128,.65)';ctx.fillRect(x-span,by,left,2);ctx.fillRect(x+w,by,right,2);
+        // Deck panel joints and under-girders.
+        ctx.strokeStyle='rgba(69,165,188,.38)';ctx.lineWidth=1;
+        for(let bx=x-span+12;bx<x+span*.1;bx+=18){ctx.beginPath();ctx.moveTo(bx,by+2);ctx.lineTo(bx,by+8);ctx.stroke();}
+        for(let bx=x+w+12;bx<x+w+right;bx+=18){ctx.beginPath();ctx.moveTo(bx,by+2);ctx.lineTo(bx,by+8);ctx.stroke();}
+        ctx.fillStyle='rgba(20,43,60,.95)';ctx.fillRect(x-span,by+9,left,5);ctx.fillRect(x+w,by+9,right,5);
+        // Railing posts and top rail, snapped at the missing section.
+        ctx.strokeStyle=`rgba(63,176,198,${.52-fracture*.18})`;ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(x-span,by-8);ctx.lineTo(x-span+left,by-8);
+        ctx.moveTo(x+w,by-8);ctx.lineTo(x+w+right,by-8);ctx.stroke();
+        for(let bx=x-span;bx<x-span+left;bx+=13){ctx.beginPath();ctx.moveTo(bx,by-8);ctx.lineTo(bx,by);ctx.stroke();}
+        for(let bx=x+w;bx<x+w+right;bx+=13){ctx.beginPath();ctx.moveTo(bx,by-8);ctx.lineTo(bx,by);ctx.stroke();}
+        // Exposed broken cable ends droop below the bridge.
+        ctx.strokeStyle='rgba(78,189,207,.5)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(x-span+left-3,by+4);ctx.lineTo(x-span+left+4,by+17+fracture*16);ctx.lineTo(x-span+left+1,by+27+fracture*20);
+        ctx.moveTo(x+w+2,by+4);ctx.lineTo(x+w-5,by+13+fracture*18);ctx.stroke();
+        // Hanging supports under intact portions.
+        ctx.strokeStyle='rgba(45,108,130,.42)';
+        ctx.beginPath();ctx.moveTo(x-span+15,by+14);ctx.lineTo(x-span+15,by+28);ctx.moveTo(x+w+right-15,by+14);ctx.lineTo(x+w+right-15,by+28);ctx.stroke();
       }
     }
   }
   ctx.restore();
 
-  // Nearer floating fragments and broken wireframe outlines become more common higher up.
-  ctx.save();
-  ctx.translate(0,-((cam*.43)%cycle));
-  const fragmentCount=7+Math.floor(fracture*13);
+  // Foreground debris: irregular polygonal chunks, layered plates, bolt heads,
+  // glowing fracture seams and dangling wires instead of floating rectangles.
+  ctx.save();ctx.translate(0,-((cam*.43)%cycle));
+  const fragmentCount=8+Math.floor(fracture*12);
   for(let layer=-1;layer<2;layer++){
     for(let i=0;i<fragmentCount;i++){
-      const seed=2300+i+layer*59;
+      const seed=2500+i+layer*71;
       const x=noise(seed)*viewW;
       const y=noise(seed+1)*cycle+layer*cycle;
-      const size=5+noise(seed+2)*(10+fracture*18);
-      const drift=Math.sin(elapsed*.35+seed)*4;
-      ctx.save();ctx.translate(x+drift,y);ctx.rotate((noise(seed+3)-.5)*.8);
-      ctx.fillStyle=`rgba(17,32,48,${.24+fracture*.12})`;
-      ctx.fillRect(-size,-size*.45,size*2,size*.9);
-      ctx.strokeStyle=`rgba(62,193,216,${.13*(1-fracture)+.035})`;
-      ctx.strokeRect(-size,-size*.45,size*2,size*.9);
+      const size=8+noise(seed+2)*(13+fracture*19);
+      const rot=(noise(seed+3)-.5)*1.2;
+      ctx.save();ctx.translate(x+Math.sin(elapsed*.35+seed)*4,y);ctx.rotate(rot);
+      ctx.fillStyle=`rgba(8,19,32,${.62+fracture*.15})`;
+      ctx.strokeStyle=`rgba(58,143,166,${.34-fracture*.08})`;ctx.lineWidth=1.2;
+      ctx.beginPath();
+      ctx.moveTo(-size,-size*.28);
+      ctx.lineTo(-size*.58,-size*.8);
+      ctx.lineTo(size*.12,-size*.66);
+      ctx.lineTo(size,.02*size);
+      ctx.lineTo(size*.46,size*.68);
+      ctx.lineTo(-size*.32,size*.48);
+      ctx.closePath();ctx.fill();ctx.stroke();
+      // Layered metal plate and inner broken edge.
+      ctx.fillStyle='rgba(26,48,64,.8)';
+      ctx.beginPath();ctx.moveTo(-size*.55,-size*.23);ctx.lineTo(size*.25,-size*.42);ctx.lineTo(size*.65,size*.04);ctx.lineTo(-size*.1,size*.25);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(76,228,239,${.28*(1-fracture)+.08})`;
+      ctx.beginPath();ctx.moveTo(-size*.5,-size*.25);ctx.lineTo(-size*.05,size*.02);ctx.lineTo(size*.38,-size*.18);ctx.stroke();
+      // Rivets and torn prongs.
+      ctx.fillStyle='rgba(114,198,213,.5)';
+      ctx.fillRect(-size*.58,-size*.3,2,2);ctx.fillRect(size*.45,size*.12,2,2);
+      ctx.strokeStyle='rgba(65,176,197,.48)';ctx.beginPath();ctx.moveTo(size*.3,size*.5);ctx.lineTo(size*.48,size*.85+fracture*5);ctx.lineTo(size*.65,size*.95+fracture*7);ctx.stroke();
+      if(noise(seed+9)<fracture){
+        ctx.strokeStyle=`rgba(255,67,137,${fracture*.4})`;ctx.beginPath();ctx.moveTo(-size*.2,-size*.3);ctx.lineTo(size*.04,0);ctx.lineTo(-size*.12,size*.28);ctx.stroke();
+      }
       ctx.restore();
     }
   }
   ctx.restore();
 
-  // Corruption appears only as the world starts failing: restrained magenta seams and glitches.
+  // Fine suspended conduits and circuit traces between architectural masses.
+  ctx.save();ctx.translate(0,-((cam*.19)%cycle));
+  for(let i=0;i<14;i++){
+    const seed=3300+i;
+    const x=noise(seed)*viewW,y=noise(seed+1)*cycle;
+    const len=35+noise(seed+2)*100;
+    ctx.strokeStyle=`rgba(48,155,180,${.18*(1-fracture)+.035})`;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+len*.45);ctx.lineTo(x+(noise(seed+3)-.5)*26,y+len*.45);ctx.lineTo(x+(noise(seed+3)-.5)*26,y+len);ctx.stroke();
+    ctx.fillStyle=`rgba(75,225,239,${.28*(1-fracture)+.04})`;ctx.fillRect(x-1,y+len-2,3,3);
+  }
+  ctx.restore();
+
+  // Corruption glitches and sparse suspended dust.
   if(fracture>0){
-    ctx.save();
     const alpha=.025+fracture*.085;
     for(let i=0;i<Math.floor(2+fracture*7);i++){
       const seed=3900+i+Math.floor(cam/130)*11;
-      const x=noise(seed)*viewW;
-      const y=noise(seed+1)*vh;
-      const ww=12+noise(seed+2)*85;
       ctx.fillStyle=`rgba(225,48,112,${alpha*(.4+noise(seed+3)*.6)})`;
-      ctx.fillRect(x,y,ww,1+noise(seed+4)*3);
+      ctx.fillRect(noise(seed)*viewW,noise(seed+1)*vh,12+noise(seed+2)*85,1+noise(seed+4)*3);
     }
     if(voidness>0){
-      ctx.strokeStyle=`rgba(176,55,132,${voidness*.12})`;
-      ctx.lineWidth=1;
-      for(let i=0;i<4;i++){
-        const seed=4800+i;
-        const x=noise(seed)*viewW;
-        const y=noise(seed+1)*vh;
-        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(noise(seed+2)-.5)*75,y+25+noise(seed+3)*65);ctx.stroke();
-      }
+      ctx.strokeStyle=`rgba(176,55,132,${voidness*.12})`;ctx.lineWidth=1;
+      for(let i=0;i<4;i++){const seed=4800+i;const x=noise(seed)*viewW,y=noise(seed+1)*vh;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(noise(seed+2)-.5)*75,y+25+noise(seed+3)*65);ctx.stroke();}
     }
-    ctx.restore();
   }
-
-  // Sparse ambient dust, deterministic positions with gentle motion.
-  for(let i=0;i<24;i++){
-    const seed=5700+i;
-    const x=noise(seed)*viewW;
-    const y=(noise(seed+1)*vh+elapsed*(5+noise(seed+2)*8))%vh;
-    const a=(.08+noise(seed+3)*.14)*(1-voidness*.5);
-    ctx.fillStyle=`rgba(105,218,232,${a})`;
+  for(let i=0;i<28;i++){
+    const seed=5700+i,x=noise(seed)*viewW,y=(noise(seed+1)*vh+elapsed*(5+noise(seed+2)*8))%vh;
+    ctx.fillStyle=`rgba(105,218,232,${(.08+noise(seed+3)*.16)*(1-voidness*.5)})`;
     ctx.fillRect(x,y,1+noise(seed+4),1+noise(seed+5));
   }
 
