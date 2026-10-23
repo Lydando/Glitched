@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#050914">
-<title>NEVERSTILL — Vertical Survival</title>
+<title>NEVERSTILL</title>
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050914;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}
 canvas{display:block;width:100%;height:100%;outline:0;touch-action:none}
-#hint{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);color:#8294b4;font-size:11px;letter-spacing:.12em;text-transform:uppercase;pointer-events:none;opacity:.8;white-space:nowrap}
+#hint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);color:#8294b4;font-size:11px;letter-spacing:.12em;text-transform:uppercase;pointer-events:none;opacity:.8;white-space:nowrap}
+@media (pointer:coarse){#hint{display:none}}
 #rotate{display:none;position:fixed;inset:0;background:#050914;color:#d8faff;align-items:center;justify-content:center;text-align:center;padding:30px;z-index:10}
 #rotate strong{display:block;font-size:20px;margin-bottom:8px}
 @media(orientation:portrait) and (max-width:700px){#rotate{display:flex}canvas,#hint{visibility:hidden}}
@@ -42,7 +43,9 @@ resize();
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rand=(a,b)=>a+Math.random()*(b-a);
-const logicalHeight=()=>H/Math.min(W/1000,H/562);
+const logicalHeight=()=>562;
+const touchMode=()=>W<1050||('ontouchstart'in window);
+const gameplayHeight=()=>touchMode()?450:562;
 
 const STORE='neverstill-records-v1';
 let records={bestHeight:0,bestTime:0,runs:0};
@@ -75,13 +78,8 @@ let joystick={
 };
 
 function screenToGame(clientX,clientY){
-  const sc=Math.min(W/1000,H/562);
-  const vw=W/sc;
-
-  return {
-    x:clientX/sc-(vw-1000)/2,
-    y:clientY/sc-(H/sc-562)/2
-  };
+  const sc=H/562;
+  return {x:clientX/sc,y:clientY/sc};
 }
 
 function updateTouch(){
@@ -174,25 +172,24 @@ let cameraY=0,wallY=0,wallSpeed=18;
 let elapsed=0,runHeight=0,score=0;
 let gameState='ready',last=0,shake=0;
 
-const world={width:1000};
+const world={get width(){return W/(H/562)}};
+let routePlatform=null;
 let player;
 
 function makePlayer(){
   return {
-    x:500,y:0,vx:0,vy:0,w:25,h:36,
-    onGround:false,wallSide:0,
+    x:world.width/2,y:0,vx:0,vy:0,w:25,h:36,
+    onGround:false,wallSide:0,wallJumpLock:0,
     dashReady:true,dashTime:0,dashDir:1,
     climbing:false,wire:null,climbCooldown:0,
     trail:[],jumpBuffer:0,coyote:0,face:1
   };
 }
 
-function addPlatform(x,y,w,type='solid'){
-  platforms.push({
-    x,y,w,h:14,type,
-    phase:Math.random()*6.28,
-    crack:0,dead:false
-  });
+function addPlatform(x,y,w,type='solid',mainRoute=false){
+  const p={x,y,w,h:14,type,mainRoute,phase:Math.random()*6.28,crack:0,dead:false};
+  platforms.push(p);
+  return p;
 }
 
 function addWire(x,y1,y2){
@@ -202,37 +199,67 @@ function addWire(x,y1,y2){
 function generateInitial(){
   platforms=[];
   wires=[];
+  const startW=Math.min(330,world.width-100);
+  routePlatform=addPlatform((world.width-startW)/2,120,startW,'solid',true);
+  let previous=routePlatform;
 
-  // Low, wide starting platform.
-  addPlatform(335,120,330,'solid');
-
-  let y=120;
-
+  // A guaranteed, alternating main route. Each jump stays within a tested
+  // horizontal/vertical envelope; optional branches are added around it.
   for(let i=0;i<18;i++){
-    const gap=i<5?rand(48,62):rand(62,82);
-    const py=y-gap;
-
-    const side=i%2
-      ?rand(550,720)
-      :rand(190,420);
-
-    addPlatform(
-      side,
-      py,
-      rand(150,210),
-      i%6===4?'unstable':'solid'
-    );
+    const gap=rand(58,72);
+    const py=previous.y-gap;
+    const pw=rand(175,215);
+    const direction=(i%2===0)?1:-1;
+    const shift=direction*rand(55,125)+rand(-35,35);
+    const x=clamp(previous.x+previous.w/2+shift-pw/2,60,world.width-pw-60);
+    const next=addPlatform(x,py,pw,'solid',true);
 
     if(i%3===1){
-      addWire(rand(390,610),py+5,y-12);
+      const wx=clamp((previous.x+previous.w/2+next.x+next.w/2)/2,42,world.width-42);
+      addWire(wx,py+4,previous.y-10);
     }
-
-    y=py;
+    if(i%4===2){
+      const branchW=rand(105,145);
+      const branchX=next.x>world.width*.52
+        ?clamp(next.x-branchW-rand(35,70),55,world.width-branchW-55)
+        :clamp(next.x+next.w+rand(35,70),55,world.width-branchW-55);
+      addPlatform(branchX,py+rand(22,36),branchW,'solid',false);
+    }
+    previous=next;
   }
+  routePlatform=previous;
+}
+
+function generateNextSection(){
+  if(!routePlatform)return;
+  const previous=routePlatform;
+  const difficulty=Math.min(1,runHeight/2200);
+  const gap=rand(62,76);
+  const py=previous.y-gap;
+  const pw=rand(160,205)-difficulty*12;
+  const direction=Math.random()<.5?-1:1;
+  const shift=direction*rand(60,135)+rand(-25,25);
+  const x=clamp(previous.x+previous.w/2+shift-pw/2,60,world.width-pw-60);
+  const next=addPlatform(x,py,pw,'solid',true);
+
+  // Optional side ledge: extra route choice without replacing the safe route.
+  if(Math.random()<.62){
+    const bw=rand(100,145);
+    const bx=next.x>world.width*.52
+      ?clamp(next.x-bw-rand(30,65),55,world.width-bw-55)
+      :clamp(next.x+next.w+rand(30,65),55,world.width-bw-55);
+    addPlatform(bx,py+rand(18,34),bw,Math.random()<.16?'unstable':'solid',false);
+  }
+  if(Math.random()<.52){
+    const wx=clamp((previous.x+previous.w/2+next.x+next.w/2)/2,42,world.width-42);
+    addWire(wx,py+4,previous.y-10);
+  }
+  routePlatform=next;
 }
 
 function reset(){
   player=makePlayer();
+  player.x=world.width/2-player.w/2;
   player.y=60;
 
   cameraY=0;
@@ -350,8 +377,9 @@ function step(dt){
 
       player.vy=0;
 
-      player.y+=
-        (inp.up?-1:inp.down?1:0)*155*dt;
+      player.y+=(inp.up?-1:inp.down?1:0)*155*dt;
+      // Stop at the endpoints. Reaching the top never auto-detaches the player.
+      player.y=clamp(player.y,player.wire.y1-player.h,player.wire.y2);
 
       if(player.jumpBuffer>0){
         player.climbing=false;
@@ -437,6 +465,8 @@ function step(dt){
     const oldY=player.y;
 
     player.x+=player.vx*dt;
+    if(player.wallJumpLock===-1&&player.x>64)player.wallJumpLock=0;
+    if(player.wallJumpLock===1&&player.x+player.w<world.width-64)player.wallJumpLock=0;
     player.x=clamp(
       player.x,
       24,
@@ -458,8 +488,9 @@ function step(dt){
           player.vy=Math.min(player.vy,160);
         }
 
-        if(player.jumpBuffer>0){
-          player.vx=255;
+        if(player.jumpBuffer>0&&player.wallJumpLock!==-1){
+          player.wallJumpLock=-1;
+          player.vx=300;
           player.vy=inp.jump?-465:-380;
           player.dashReady=true;
           player.jumpBuffer=0;
@@ -478,8 +509,9 @@ function step(dt){
           player.vy=Math.min(player.vy,160);
         }
 
-        if(player.jumpBuffer>0){
-          player.vx=-255;
+        if(player.jumpBuffer>0&&player.wallJumpLock!==1){
+          player.wallJumpLock=1;
+          player.vx=-300;
           player.vy=inp.jump?-465:-380;
           player.dashReady=true;
           player.jumpBuffer=0;
@@ -528,36 +560,12 @@ function step(dt){
       player.coyote=Math.max(0,player.coyote-dt);
     }
 
-    // Generate new platforms above the player.
+    // Extend the validated main route above the camera before the player reaches it.
     const topY=player.y-950;
-
-    let highest=platforms.reduce(
-      (m,p)=>p.dead?m:Math.min(m,p.y),
-      Infinity
-    );
-
+    let highest=platforms.reduce((m,p)=>p.dead?m:Math.min(m,p.y),Infinity);
     while(highest>topY){
-      const py=highest-rand(82,120);
-      const difficulty=Math.min(1,runHeight/2200);
-      const pw=rand(118,195)-difficulty*25;
-      const x=rand(60,world.width-pw-60);
-
-      const type=
-        Math.random()<.17+difficulty*.12
-          ?'unstable'
-          :'solid';
-
-      addPlatform(x,py,pw,type);
-
-      if(Math.random()<.45){
-        addWire(
-          rand(160,840),
-          py+4,
-          py+rand(110,180)
-        );
-      }
-
-      highest=py;
+      generateNextSection();
+      highest=platforms.reduce((m,p)=>p.dead?m:Math.min(m,p.y),Infinity);
     }
 
     platforms=platforms.filter(
@@ -603,7 +611,7 @@ function step(dt){
     shake=Math.max(0,shake-dt*18);
   }
 
-  const target=player.y-logicalHeight()*.5;
+  const target=player.y-gameplayHeight()*.5;
 
   cameraY+=(target-cameraY)*Math.min(1,dt*4.5);
 
@@ -640,16 +648,15 @@ function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.clearRect(0,0,W,H);
 
-  const scale=Math.min(W/1000,H/562);
+  const scale=H/562;
   const viewW=W/scale;
   const viewH=H/scale;
 
   ctx.save();
   ctx.scale(scale,scale);
-  ctx.translate((viewW-1000)/2,0);
 
   const vh=562;
-  const cam=cameraY+(H/scale-vh)/2;
+  const cam=cameraY;
 
   // Background.
   let g=ctx.createLinearGradient(0,0,0,vh);
@@ -659,7 +666,7 @@ function draw(){
   g.addColorStop(1,'#0b1021');
 
   ctx.fillStyle=g;
-  ctx.fillRect(0,0,1000,vh);
+  ctx.fillRect(0,0,viewW,vh);
 
   // Atmospheric grid and server silhouettes.
   ctx.save();
@@ -670,11 +677,11 @@ function draw(){
     ctx.lineWidth=1;
     ctx.beginPath();
     ctx.moveTo(0,y);
-    ctx.lineTo(1000,y);
+    ctx.lineTo(viewW,y);
     ctx.stroke();
   }
 
-  for(let i=0;i<10;i++){
+  for(let i=0;i<Math.ceil(viewW/118)+1;i++){
     let x=i*118+((i%2)*28);
 
     ctx.fillStyle='rgba(14,35,57,.7)';
@@ -692,7 +699,7 @@ function draw(){
   ctx.restore();
 
   // Side rails.
-  for(let x of [24,952]){
+  for(let x of [24,world.width-48]){
     ctx.fillStyle='#0b1b2b';
     ctx.fillRect(x,0,24,vh);
 
@@ -773,7 +780,7 @@ function draw(){
   ctx.beginPath();
   ctx.moveTo(24,wallScreen);
 
-  for(let x=24;x<=952;x+=22){
+  for(let x=24;x<=world.width-48;x+=22){
     ctx.lineTo(
       x,
       wallScreen+
@@ -782,7 +789,7 @@ function draw(){
     );
   }
 
-  ctx.lineTo(952,wallScreen+1600);
+  ctx.lineTo(world.width-48,wallScreen+1600);
   ctx.lineTo(24,wallScreen+1600);
   ctx.closePath();
   ctx.fill();
@@ -793,7 +800,7 @@ function draw(){
   ctx.shadowBlur=18;
   ctx.beginPath();
 
-  for(let x=24;x<=952;x+=10){
+  for(let x=24;x<=world.width-48;x+=10){
     let y=
       wallScreen+
       Math.sin(x*.08+elapsed*3)*5+
@@ -884,7 +891,7 @@ function draw(){
     gameState==='paused'
   ){
     ctx.fillStyle='rgba(2,6,14,.72)';
-    ctx.fillRect(0,0,1000,vh);
+    ctx.fillRect(0,0,viewW,touchMode()?450:vh);
 
     ctx.textAlign='center';
     ctx.fillStyle='#8af6ff';
@@ -893,7 +900,7 @@ function draw(){
 
     ctx.fillText(
       gameState==='ready'
-        ?'VERTICAL SURVIVAL'
+        ?''
         :gameState==='over'
           ?'SIGNAL LOST'
           :'PAUSED',
@@ -902,11 +909,11 @@ function draw(){
 
     ctx.letterSpacing='0px';
     ctx.fillStyle='#f1fbff';
-    ctx.font='800 46px ui-sans-serif,system-ui';
+    ctx.font=gameState==='over'?'800 48px ui-sans-serif,system-ui':'800 46px ui-sans-serif,system-ui';
 
     ctx.fillText(
       gameState==='over'
-        ?'CAUGHT BY CORRUPTION'
+        ?'CAPTURED'
         :'NEVERSTILL',
       500,246
     );
@@ -964,16 +971,23 @@ function draw(){
   // Mobile controls.
   controls=[];
 
-  if(W<1050||('ontouchstart'in window)){
-    const cy=vh-88;
+  if(touchMode()){
+    const stripY=450;
+    const cy=508;
+    // Dedicated bottom control strip keeps buttons out of the climbing route.
+    ctx.fillStyle='rgba(3,8,18,.96)';
+    ctx.fillRect(0,stripY,viewW,vh-stripY);
+    ctx.fillStyle='rgba(74,222,239,.22)';
+    ctx.fillRect(0,stripY,viewW,1);
 
-    joystick.x=112;
+    joystick.x=115;
     joystick.y=cy;
+    joystick.r=43;
 
     controls=[
       {id:'stick',x:joystick.x,y:cy,r:joystick.r},
-      {id:'jump',x:842,y:cy-2,r:37},
-      {id:'dash',x:925,y:cy-48,r:31}
+      {id:'jump',x:viewW-190,y:cy,r:43},
+      {id:'dash',x:viewW-88,y:cy,r:39}
     ];
 
     // Circular analogue joystick.
@@ -1017,7 +1031,7 @@ function draw(){
       ctx.stroke();
 
       ctx.fillStyle='#d5fcff';
-      ctx.font='700 16px ui-sans-serif,system-ui';
+      ctx.font='700 14px ui-sans-serif,system-ui';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
 
