@@ -197,40 +197,41 @@ function addWire(x,y1,y2){
   wires.push({x,y1,y2});
 }
 
-function reachablePlatformX(previous,pw,step=0,zoneHint=null){
-  // Sample across the shaft first; reachability filters candidates but does not
-  // pull platforms toward the edge of the player's range.
-  const edge=34;
-  const shaftW=world.width;
+function reachablePlatformX(previous,pw,step=0,zoneHint=null,y=0){
+  // Reachability is a hard limit. Within it, reject positions that put a
+  // platform directly above/below another ledge in the same vertical band.
+  const edge=34, shaftW=world.width;
   const maxX=Math.max(edge,shaftW-pw-edge);
   const prevCenter=previous.x+previous.w/2;
   const maxHorizontal=156;
   const lo=Math.max(edge,prevCenter-maxHorizontal-pw/2);
   const hi=Math.min(maxX,prevCenter+maxHorizontal-pw/2);
-  if(hi<lo) return clamp(prevCenter-pw/2,edge,maxX);
-  const zones=4;
-  const zoneW=(shaftW-2*edge)/zones;
+  if(hi<lo)return null;
+  const zoneW=(shaftW-2*edge)/4;
   const candidates=[];
-  for(let i=0;i<140;i++){
-    const x=rand(edge,maxX);
-    if(x<lo||x>hi)continue;
+  for(let i=0;i<260;i++){
+    const x=rand(lo,hi);
+    // Platforms within 112 vertical pixels must not overlap horizontally.
+    const stacked=platforms.some(p=>!p.dead&&Math.abs(p.y-y)<112&&
+      x<p.x+p.w+14&&x+pw>p.x-14);
+    if(stacked)continue;
     const center=x+pw/2;
-    const zone=clamp(Math.floor((center-edge)/zoneW),0,zones-1);
-    const horizontal=Math.abs(center-prevCenter);
+    const zone=clamp(Math.floor((center-edge)/zoneW),0,3);
     const edgeDistance=Math.min(x-edge,maxX-x);
-    const edgePenalty=edgeDistance<45?(45-edgeDistance)*1.8:0;
-    const zonePenalty=zoneHint===null?0:(zone===zoneHint?0:8);
-    candidates.push({x,score:edgePenalty+horizontal*.12+zonePenalty+rand(0,18),zone});
+    const edgePenalty=edgeDistance<32?(32-edgeDistance)*1.1:0;
+    const zonePenalty=zoneHint===null?0:(zone===zoneHint?0:10);
+    const horizontal=Math.abs(center-prevCenter);
+    candidates.push({x,score:edgePenalty+horizontal*.10+zonePenalty+rand(0,22),zone});
   }
-  if(!candidates.length)return rand(lo,hi);
+  if(!candidates.length)return null;
   candidates.sort((a,b)=>a.score-b.score);
-  const pool=candidates.slice(0,Math.min(24,candidates.length));
+  const pool=candidates.slice(0,Math.min(30,candidates.length));
   return pool[Math.floor(Math.random()*pool.length)].x;
 }
 
 function addOptionalBranch(main,step){
   // Optional ledges are sparse and never count as the only way upward.
-  if(Math.random()>.20)return;
+  if(Math.random()>.06)return;
   const bw=rand(68,104), edge=34;
   const maxX=Math.max(edge,world.width-bw-edge);
   for(let attempt=0;attempt<24;attempt++){
@@ -248,15 +249,26 @@ function chooseFrontierSource(){
 }
 
 function makeReachablePlatform(source,y,pw,usedZones,step){
-  // Prefer a different broad horizontal zone, but only among positions that
-  // remain comfortably reachable from this source.
   const shaftW=world.width, edge=34, zoneW=(shaftW-2*edge)/4;
   const sourceZone=clamp(Math.floor(((source.x+source.w/2)-edge)/zoneW),0,3);
   let hints=[0,1,2,3].filter(z=>z!==sourceZone&&!usedZones.has(z));
   if(!hints.length)hints=[0,1,2,3].filter(z=>z!==sourceZone);
-  const hint=hints[Math.floor(Math.random()*hints.length)]??null;
-  const x=reachablePlatformX(source,pw,step,hint);
-  return addPlatform(x,y,pw,Math.random()<.07?'unstable':'solid',true);
+  // Retry fresh positions instead of forcing an invalid/stacked placement.
+  for(let attempt=0;attempt<10;attempt++){
+    const hint=hints.length?hints[Math.floor(Math.random()*hints.length)]:null;
+    const x=reachablePlatformX(source,pw,step,hint,y);
+    if(x!==null)return addPlatform(x,y,pw,Math.random()<.10?'unstable':'solid',true);
+  }
+  // Last-resort safe fallback: search broad positions and preserve the no-stack rule.
+  const maxX=Math.max(edge,world.width-pw-edge);
+  for(let i=0;i<180;i++){
+    const x=rand(edge,maxX);
+    const dx=Math.abs((x+pw/2)-(source.x+source.w/2));
+    const stacked=platforms.some(p=>!p.dead&&Math.abs(p.y-y)<112&&x<p.x+p.w+14&&x+pw>p.x-14);
+    if(dx<=156&&!stacked)return addPlatform(x,y,pw,'solid',true);
+  }
+  // If the current layer is too crowded, move the layer farther upward and retry.
+  return addPlatform(clamp(source.x+source.w/2-pw/2,edge,maxX),y-24,pw,'solid',true);
 }
 
 function generateInitial(){
@@ -270,11 +282,11 @@ function generateInitial(){
   let baseY=start.y;
   // Build overlapping layers. Each layer has 2-3 upward choices; sources are
   // drawn from the whole previous layer, not a single mandatory spine.
-  for(let layer=0;layer<16;layer++){
-    baseY-=rand(74,91);
+  for(let layer=0;layer<6;layer++){
+    baseY-=rand(88,102);
     const nextLayer=[];
     const usedZones=new Set();
-    const count=layer<2?2: (Math.random()<.72?3:2);
+    const count=2;
     for(let j=0;j<count;j++){
       const source=chooseFrontierSource()||start;
       const pw=rand(106,148);
@@ -305,12 +317,12 @@ function generateNextSection(){
   const difficulty=Math.min(1,runHeight/2200);
   const sourceLayer=routeFrontier.filter(p=>p&&!p.dead);
   if(!sourceLayer.length)return;
-  const baseY=Math.min(...sourceLayer.map(p=>p.y))-rand(74,91);
+  const baseY=Math.min(...sourceLayer.map(p=>p.y))-rand(88,102);
   const nextLayer=[];
   const usedZones=new Set();
   // 2-3 real upward choices per layer. Each is sampled from a reachable
   // source platform, so the player is not forced onto one generated sequence.
-  const count=Math.random()<.72?3:2;
+  const count=2;
   for(let i=0;i<count;i++){
     const source=sourceLayer[Math.floor(Math.random()*sourceLayer.length)];
     const pw=rand(106,148)-difficulty*4;
@@ -322,7 +334,7 @@ function generateNextSection(){
   }
   routeFrontier=nextLayer;
   routePlatform=nextLayer[Math.floor(Math.random()*nextLayer.length)];
-  if(Math.random()<.10){
+  if(Math.random()<.05){
     const wx=rand(45,Math.max(46,world.width-45));
     addWire(wx,baseY-rand(20,42),baseY+rand(45,85));
   }
