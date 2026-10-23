@@ -197,56 +197,57 @@ function addWire(x,y1,y2){
 }
 
 function reachablePlatformX(previous,pw,step=0){
-  const edge=42;
-  const maxX=Math.max(edge,world.width-pw-edge);
-  // Keep each destination inside a conservative reachable envelope, but do not
-  // bias placements toward the edge of that envelope.
-  const reach=158;
-  const minReach=Math.max(edge,previous.x-pw+26,previous.x-reach);
-  const maxReach=Math.min(maxX,previous.x+previous.w-26+reach);
-  const zones=[
-    [edge,world.width*.32-pw],
-    [world.width*.34,world.width*.66-pw],
-    [world.width*.68,maxX]
-  ].map(([lo,hi])=>[Math.max(edge,lo),Math.min(maxX,hi)]);
-  // A varied route rhythm: left, right, centre, right, left, centre.
-  const preferred=[0,2,1,2,0,1][step%6];
-  let candidates=zones.map((z,i)=>{
-    const lo=Math.max(z[0],minReach),hi=Math.min(z[1],maxReach);
-    return {i,lo,hi,valid:lo<=hi};
-  }).filter(z=>z.valid);
-  if(!candidates.length){
-    candidates=[{lo:minReach,hi:Math.max(minReach,maxReach),i:1,valid:true}];
+  // Reachability is only a constraint. Never aim for the edge of the reachable
+  // interval: choose a comfortable, varied landing across the usable shaft.
+  const edge=92;
+  const shaftW=world.width;
+  const usableMax=Math.max(edge,shaftW-pw-edge);
+  const prevCenter=previous.x+previous.w/2;
+  const maxHorizontal=126;
+  const minX=Math.max(edge,prevCenter-maxHorizontal-pw/2);
+  const maxX=Math.min(usableMax,prevCenter+maxHorizontal-pw/2);
+  const lo=Math.min(minX,maxX), hi=Math.max(minX,maxX);
+  const candidates=[];
+  for(let i=0;i<100;i++){
+    const x=rand(edge,usableMax);
+    const center=x+pw/2;
+    const delta=Math.abs(center-prevCenter);
+    if(x<lo||x>hi||delta>maxHorizontal)continue;
+    const edgeGap=Math.min(x-edge,usableMax-x);
+    // Penalize wall-hugging positions strongly; do not reward maximum reach.
+    const edgePenalty=edgeGap<105?(105-edgeGap)*2.2:0;
+    const centerBias=Math.abs(center-shaftW/2)*0.025;
+    const score=edgePenalty+centerBias+rand(0,22);
+    candidates.push({x,score});
   }
-  let choice=candidates.find(c=>c.i===preferred);
-  if(!choice){
-    // Prefer a different reachable zone instead of repeatedly selecting the
-    // same edge when the ideal zone is outside the jump envelope.
-    choice=candidates.sort((a,b)=>{
-      const prevZone=step>0?[0,2,1,2,0,1][(step-1)%6]:-1;
-      return (a.i===prevZone?1:0)-(b.i===prevZone?1:0);
-    })[0];
+  if(candidates.length){
+    candidates.sort((a,b)=>a.score-b.score);
+    // Pick randomly among good candidates to keep a natural, non-patterned route.
+    const pool=candidates.slice(0,Math.min(18,candidates.length));
+    return pool[Math.floor(Math.random()*pool.length)].x;
   }
-  const span=choice.hi-choice.lo;
-  const inset=Math.min(18,span*.18);
-  return rand(choice.lo+inset,Math.max(choice.lo+inset,choice.hi-inset));
+  // Fallback stays comfortably inside both the shaft and reachable interval.
+  const inset=Math.min(32,Math.max(0,(hi-lo)*0.25));
+  const safeLo=Math.min(lo+inset,hi);
+  const safeHi=Math.max(safeLo,hi-inset);
+  return rand(safeLo,safeHi);
 }
 
 function addOptionalBranch(main,step){
-  if(Math.random()>.27)return;
-  const bw=rand(76,118);
-  const edge=28;
+  if(Math.random()>.12)return;
+  const bw=rand(72,108);
+  const edge=100;
   const maxX=Math.max(edge,world.width-bw-edge);
-  const mainCenter=main.x+main.w/2;
-  // Bias branches toward the opposite side from the main ledge.
-  let lo,hi;
-  if(mainCenter<world.width*.5){lo=Math.max(edge,world.width*.58-bw);hi=maxX;}
-  else {lo=edge;hi=Math.min(maxX,world.width*.42);}
-  if(lo>hi){lo=edge;hi=maxX;}
-  const bx=rand(lo,hi);
-  const by=main.y+rand(-20,34);
-  const overlaps=platforms.some(p=>!p.dead&&Math.abs(p.y-by)<20&&bx<p.x+p.w+22&&bx+bw>p.x-22);
-  if(!overlaps)addPlatform(bx,by,bw,Math.random()<.12?'unstable':'solid',false);
+  let chosen=null;
+  // Try several positions across the shaft; don't systematically push branches
+  // to the opposite edge of the main platform.
+  for(let attempt=0;attempt<18;attempt++){
+    const bx=rand(edge,maxX);
+    const by=main.y+rand(-24,34);
+    const overlaps=platforms.some(p=>!p.dead&&Math.abs(p.y-by)<24&&bx<p.x+p.w+30&&bx+bw>p.x-30);
+    if(!overlaps){chosen={x:bx,y:by};break;}
+  }
+  if(chosen)addPlatform(chosen.x,chosen.y,bw,Math.random()<.08?'unstable':'solid',false);
 }
 
 function generateInitial(){
