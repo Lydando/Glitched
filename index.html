@@ -175,6 +175,7 @@ let gameState='ready',last=0,shake=0;
 const world={get width(){return W/(H/562)}};
 let routePlatform=null;
 let routeFrontier=[];
+let lastSpawnedLedge=null;
 let player;
 
 function makePlayer(){
@@ -190,6 +191,7 @@ function makePlayer(){
 function addPlatform(x,y,w,type='solid',mainRoute=false){
   const p={x,y,w,h:14,type,mainRoute,phase:Math.random()*6.28,crack:0,dead:false};
   platforms.push(p);
+  lastSpawnedLedge=p;
   return p;
 }
 
@@ -197,9 +199,22 @@ function addWire(x,y1,y2){
   wires.push({x,y1,y2});
 }
 
+function platformZone(x,w){
+  const edge=34;
+  const zoneW=(world.width-2*edge)/6;
+  return clamp(Math.floor(((x+w/2)-edge)/zoneW),0,5);
+}
+
+function violatesPreviousSpawnZone(x,w,y,ignore=null){
+  if(!lastSpawnedLedge||lastSpawnedLedge===ignore||lastSpawnedLedge.dead)return false;
+  const sameOrAdjacent=Math.abs(platformZone(x,w)-platformZone(lastSpawnedLedge.x,lastSpawnedLedge.w))<=1;
+  const stacked=Math.abs(y-lastSpawnedLedge.y)<112 &&
+    x<lastSpawnedLedge.x+lastSpawnedLedge.w+14 &&
+    x+w>lastSpawnedLedge.x-14;
+  return sameOrAdjacent||stacked;
+}
+
 function reachablePlatformX(previous,pw,step=0,zoneHint=null,y=0){
-  // Reachability is a hard limit. Within it, reject positions that put a
-  // platform directly above/below another ledge in the same vertical band.
   const edge=34, shaftW=world.width;
   const maxX=Math.max(edge,shaftW-pw-edge);
   const prevCenter=previous.x+previous.w/2;
@@ -207,38 +222,53 @@ function reachablePlatformX(previous,pw,step=0,zoneHint=null,y=0){
   const lo=Math.max(edge,prevCenter-maxHorizontal-pw/2);
   const hi=Math.min(maxX,prevCenter+maxHorizontal-pw/2);
   if(hi<lo)return null;
-  const zoneW=(shaftW-2*edge)/4;
   const candidates=[];
-  for(let i=0;i<260;i++){
+  for(let i=0;i<320;i++){
     const x=rand(lo,hi);
-    // Platforms within 112 vertical pixels must not overlap horizontally.
     const stacked=platforms.some(p=>!p.dead&&Math.abs(p.y-y)<112&&
       x<p.x+p.w+14&&x+pw>p.x-14);
     if(stacked)continue;
-    const center=x+pw/2;
-    const zone=clamp(Math.floor((center-edge)/zoneW),0,3);
+    const zone=platformZone(x,pw);
+    const previousZone=lastSpawnedLedge&&!lastSpawnedLedge.dead
+      ?platformZone(lastSpawnedLedge.x,lastSpawnedLedge.w):-1;
+    // Prefer a zone at least one full zone away from the immediate previous
+    // ledge. Reachability takes priority if the shaft geometry makes that impossible.
+    const spreadPenalty=previousZone>=0&&Math.abs(zone-previousZone)<=1?90:0;
     const edgeDistance=Math.min(x-edge,maxX-x);
-    const edgePenalty=edgeDistance<32?(32-edgeDistance)*1.1:0;
-    const zonePenalty=zoneHint===null?0:(zone===zoneHint?0:10);
-    const horizontal=Math.abs(center-prevCenter);
-    candidates.push({x,score:edgePenalty+horizontal*.10+zonePenalty+rand(0,22),zone});
+    const edgePenalty=edgeDistance<24?(24-edgeDistance)*1.2:0;
+    const zonePenalty=zoneHint===null?0:(zone===zoneHint?0:12);
+    const horizontal=Math.abs(x+pw/2-prevCenter);
+    candidates.push({x,score:spreadPenalty+edgePenalty+horizontal*.10+zonePenalty+rand(0,22),zone});
   }
   if(!candidates.length)return null;
   candidates.sort((a,b)=>a.score-b.score);
-  const pool=candidates.slice(0,Math.min(30,candidates.length));
+  const best=candidates.slice(0,Math.min(35,candidates.length));
+  // Prefer valid spread candidates whenever any exist.
+  const spread=best.filter(c=>!lastSpawnedLedge||lastSpawnedLedge.dead||Math.abs(c.zone-platformZone(lastSpawnedLedge.x,lastSpawnedLedge.w))>1);
+  const pool=spread.length?spread:best;
   return pool[Math.floor(Math.random()*pool.length)].x;
 }
 
 function addOptionalBranch(main,step){
-  // Optional ledges are sparse and never count as the only way upward.
-  if(Math.random()>.06)return;
+  // Every optional spawn is weighted: 30% climbing vine, 70% extra ledge.
+  // These are bonuses/alternatives; the guaranteed main-route ledges remain
+  // available so a vine roll can never make upward progress impossible.
+  if(Math.random()>.28)return;
+  if(Math.random()<.30){
+    const wx=clamp(main.x+rand(-35,main.w+35),46,world.width-46);
+    const y1=main.y-rand(18,42);
+    addWire(wx,y1,y1+rand(58,100));
+    return;
+  }
   const bw=rand(68,104), edge=34;
   const maxX=Math.max(edge,world.width-bw-edge);
-  for(let attempt=0;attempt<24;attempt++){
+  for(let attempt=0;attempt<60;attempt++){
     const bx=rand(edge,maxX);
     const by=main.y+rand(-22,28);
-    const overlaps=platforms.some(p=>!p.dead&&Math.abs(p.y-by)<20&&bx<p.x+p.w+22&&bx+bw>p.x-22);
-    if(!overlaps){addPlatform(bx,by,bw,Math.random()<.07?'unstable':'solid',false);return;}
+    const sameBandOverlap=platforms.some(p=>!p.dead&&Math.abs(p.y-by)<20&&bx<p.x+p.w+22&&bx+bw>p.x-22);
+    if(sameBandOverlap||violatesPreviousSpawnZone(bx,bw,by,main))continue;
+    addPlatform(bx,by,bw,Math.random()<.07?'unstable':'solid',false);
+    return;
   }
 }
 
@@ -267,14 +297,22 @@ function makeReachablePlatform(source,y,pw,usedZones,step){
     const stacked=platforms.some(p=>!p.dead&&Math.abs(p.y-y)<112&&x<p.x+p.w+14&&x+pw>p.x-14);
     if(dx<=156&&!stacked)return addPlatform(x,y,pw,'solid',true);
   }
-  // If the current layer is too crowded, move the layer farther upward and retry.
-  return addPlatform(clamp(source.x+source.w/2-pw/2,edge,maxX),y-24,pw,'solid',true);
+  // Final fallback preserves reachable movement and avoids copying the prior
+  // ledge's zone where possible. Keep the guaranteed route rather than dead-ending.
+  for(let i=0;i<240;i++){
+    const x=rand(edge,maxX);
+    const dx=Math.abs((x+pw/2)-(source.x+source.w/2));
+    const stacked=platforms.some(p=>!p.dead&&Math.abs(p.y-(y-18))<112&&x<p.x+p.w+14&&x+pw>p.x-14);
+    if(dx<=156&&!stacked)return addPlatform(x,y-18,pw,'solid',true);
+  }
+  return addPlatform(clamp(source.x+source.w/2-pw/2,edge,maxX),y-36,pw,'solid',true);
 }
 
 function generateInitial(){
   platforms=[];
   wires=[];
   routeFrontier=[];
+  lastSpawnedLedge=null;
   const startW=Math.min(220,world.width-68);
   const start=addPlatform((world.width-startW)/2,120,startW,'solid',true);
   routePlatform=start;
@@ -666,9 +704,12 @@ function step(dt){
     Math.max(0,60-player.y)
   );
 
+  // The corruption wall should remain a real pressure source without
+  // outrunning fair platforming. It starts noticeably quicker and ramps
+  // steadily with survival time and height, with a firm late-run cap.
   wallSpeed=Math.min(
-    70,
-    18+elapsed*.38+Math.floor(runHeight/500)*2.2
+    64,
+    22+elapsed*.44+Math.floor(runHeight/450)*2.4
   );
 
   wallY-=wallSpeed*dt;
