@@ -18,9 +18,9 @@ canvas{display:block;width:100%;height:100%;outline:0;touch-action:none}
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Glitched game"></canvas>
+<canvas id="game" aria-label="Glitch game"></canvas>
 <div id="hint">A / D or ← / → · Space jump · Shift dash · W/S on wires · R restart</div>
-<div id="rotate"><div><strong>Rotate your device</strong>Glitched is designed for landscape play.</div></div>
+<div id="rotate"><div><strong>Rotate your device</strong>Glitch is designed for landscape play.</div></div>
 
 <script>
 (()=>{'use strict';
@@ -1244,70 +1244,58 @@ function draw(){
   ctx.fillStyle='rgba(7,3,18,.94)';
   ctx.fill();
 
-  // A few fractured data seams crawl upward through the virus. Fixed-count
-  // geometry avoids spawning a large particle cloud every frame.
+  // Animated cyan/pink corruption streaks. They travel through the dark mass,
+  // fracture into displaced segments, and flicker independently of the wall edge.
   ctx.save();
-  ctx.globalAlpha=.38+corruption*.25;
-  ctx.lineWidth=1;
-  for(let i=0;i<13;i++){
-    const seed=i*79.7;
-    const x=wallLeft+((seed+elapsed*(9+i%4)*3)%(wallRight-wallLeft));
-    const y=wallScreen+24+((i*113+elapsed*(24+i%3)*4)%(wallDepth-40));
-    const len=8+(i%5)*5;
-    ctx.strokeStyle=i%4===0?'#ff4bd8':(i%3===0?'#a34dff':'#542d92');
+  for(let i=0;i<25;i++){
+    const seed=i*67.31;
+    const travel=elapsed*(18+(i%6)*7);
+    const x=wallLeft+((seed+travel*1.7)%(wallRight-wallLeft));
+    const y=wallScreen+20+((i*113+travel*2.4)%(wallDepth-45));
+    const len=12+(i%7)*8;
+    const flicker=(Math.sin(elapsed*11+i*4.1)+1)*.5;
+    const cyan=i%2===0;
+    const bright=(i%5===0)?(.7+flicker*.3):(.28+flicker*.28);
+    ctx.globalAlpha=bright;
+    ctx.lineWidth=i%6===0?2:1;
+    ctx.strokeStyle=cyan?'#42f5ff':(i%3===0?'#b64dff':'#ff4bd8');
     ctx.beginPath();
     ctx.moveTo(x,y);
-    ctx.lineTo(x+(i%2?len:-len)*.55,y-5-(i%3)*3);
-    ctx.lineTo(x+(i%2?len:-len),y-2);
+    ctx.lineTo(x+len*.35,y+(i%3-1)*2);
+    if(i%4!==0) ctx.lineTo(x+len*.58,y-((i%4)+2));
+    ctx.lineTo(x+len,y+(i%2===0?1:-2));
     ctx.stroke();
+    // A brief RGB displacement makes selected streaks look torn by corruption.
+    if(i%4===0 && flicker>.58){
+      ctx.globalAlpha=.65;
+      ctx.fillStyle=cyan?'#ff4bd8':'#42f5ff';
+      ctx.fillRect(x+len*.45+((Math.floor(elapsed*13+i)%3)-1)*5,y-3,4+(i%3)*2,2);
+    }
     if(i%3===0){
-      ctx.fillStyle='#f65bdf';
-      ctx.fillRect(x+len*.3,y-14,2+(i%2),2);
-      ctx.fillRect(x-len*.25,y+5,2,2);
+      ctx.globalAlpha=.2+flicker*.22;
+      ctx.fillStyle=cyan?'#42f5ff':'#ff4bd8';
+      ctx.fillRect(x+len*.2,y+4,2+(i%3),1+(i%2));
     }
   }
   ctx.restore();
 
-  // Cyan/pink corruption streams: thin data streaks crawl through the dark
-  // mass, occasionally splitting into offset fragments. Fixed loops keep cost low.
-  for(let i=0;i<22;i++){
-    const travel=elapsed*(24+(i%5)*11);
-    const y=wallScreen+20+((i*97+travel)%(wallDepth-36));
-    const drift=Math.sin(elapsed*1.7+i*2.3)*22;
-    const x=wallLeft+((i*173+drift+wallRight-wallLeft)%(wallRight-wallLeft-90));
-    const len=12+(i%6)*12;
-    const glitching=(Math.floor(elapsed*(3.2+(i%4)))+i*7)%13<2;
-    ctx.save();
-    ctx.globalAlpha=(i%3===0?.68:.3)+(pulse*.12);
-    ctx.lineWidth=i%6===0?2:1;
-    ctx.strokeStyle=i%2===0?'#ff54d8':'#48efff';
-    ctx.beginPath();
-    ctx.moveTo(x,y);
-    ctx.lineTo(x+len*(glitching?-.35: .62),y+(i%3)-1);
-    ctx.lineTo(x+len*(glitching?1.25:1),y+(i%4===0?3:0));
-    ctx.stroke();
-    if(glitching){
-      ctx.globalAlpha=.72;
-      ctx.fillStyle=i%2===0?'#50f4ff':'#ff4bd8';
-      ctx.fillRect(x+(i%2?7:-5),y-3,len*.38,2);
-      ctx.fillStyle='rgba(2,1,12,.95)';
-      ctx.fillRect(x+len*.35,y-2,len*.24,5);
-    }
-    ctx.restore();
-  }
-
-  // Broken horizontal scan bands and missing-data blocks.
-  for(let i=0;i<10;i++){
-    const y=wallScreen+18+((i*137+elapsed*(30+i%3*9))%(wallDepth-30));
-    const x=wallLeft+((i*151+Math.sin(elapsed*.8+i)*34)%(wallRight-wallLeft-70));
-    const width=18+(i%4)*13;
-    ctx.fillStyle=i%3===0?'rgba(255,62,218,.24)':(i%3===1?'rgba(66,239,255,.18)':'rgba(118,63,191,.16)');
-    ctx.fillRect(x,y,width,1+(i%2));
-    if(i%2===0){
-      ctx.fillStyle='rgba(3,2,12,.88)';
-      ctx.fillRect(x+width*.55,y-3,width*.28,5);
+  // Scanlines and missing-data blocks interrupt the streaks as they glitch.
+  for(let i=0;i<13;i++){
+    const travel=elapsed*(24+(i%4)*11);
+    const y=wallScreen+14+((i*137+travel)%(wallDepth-28));
+    const x=wallLeft+((i*151+Math.sin(elapsed*2.8+i)*49)%(wallRight-wallLeft-85));
+    const width=20+(i%5)*15;
+    ctx.globalAlpha=.22+((Math.sin(elapsed*9+i*2)+1)*.5)*.32;
+    ctx.fillStyle=i%2===0?'#42f5ff':'#ff4bd8';
+    ctx.fillRect(x,y,width,1+(i%3===0?2:0));
+    ctx.fillStyle='rgba(2,1,10,.92)';
+    ctx.fillRect(x+width*.4,y-2,width*.35,4+(i%2)*2);
+    if(i%3===0){
+      ctx.fillStyle='rgba(240,70,230,.4)';
+      ctx.fillRect(x+width+5,y+3,7,2);
     }
   }
+  ctx.globalAlpha=1;
 
   // Corrupted edge: magenta core with occasional violet interference, no
   // expensive blur. A restrained pulse signals danger without washing out play.
