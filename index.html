@@ -196,58 +196,85 @@ function addWire(x,y1,y2){
   wires.push({x,y1,y2});
 }
 
-function reachablePlatformX(previous,pw){
-  // Keep the next required ledge within a generous horizontal jump/dash envelope.
-  // The target can still shift left or right, but never beyond a plausible landing.
-  const margin=18;
-  const reach=118;
-  const minX=Math.max(28,previous.x-pw+margin,previous.x- reach);
-  const maxX=Math.min(world.width-pw-28,previous.x+previous.w-margin+reach);
-  const safeMin=Math.max(28,Math.min(minX,world.width-pw-28));
-  const safeMax=Math.max(safeMin,Math.min(maxX,world.width-pw-28));
-  return rand(safeMin,safeMax);
+function reachablePlatformX(previous,pw,step=0){
+  // Pick a broad horizontal destination zone, then constrain it to the
+  // actual reachable envelope so variety never breaks the main route.
+  const edge=28;
+  const maxX=Math.max(edge,world.width-pw-edge);
+  const reach=150;
+  const minReach=Math.max(edge,previous.x-pw+22,previous.x-reach);
+  const maxReach=Math.min(maxX,previous.x+previous.w-22+reach);
+  const zones=[
+    [edge,world.width*.30-pw],
+    [world.width*.35,world.width*.65-pw],
+    [world.width*.70,world.width-pw-edge]
+  ].map(([lo,hi])=>[Math.max(edge,lo),Math.min(maxX,hi)]);
+
+  // Cycle through left / right / centre rather than letting random placement
+  // drift to one side. If a zone cannot be reached, use the closest reachable one.
+  const preferred=[0,2,1,0,2,1][step%6];
+  let [lo,hi]=zones[preferred];
+  lo=Math.max(lo,minReach);
+  hi=Math.min(hi,maxReach);
+  if(lo>hi){
+    const candidates=zones.map((z,i)=>{
+      const l=Math.max(z[0],minReach),h=Math.min(z[1],maxReach);
+      return {i,l,h,valid:l<=h,dist:Math.abs((z[0]+z[1])/2-(previous.x+previous.w/2))};
+    }).filter(z=>z.valid).sort((a,b)=>a.dist-b.dist);
+    if(candidates.length){lo=candidates[0].l;hi=candidates[0].h;}
+    else {lo=minReach;hi=Math.max(minReach,maxReach);}
+  }
+  // Prefer the outer half of the available range to keep the route moving
+  // across the screen, with enough randomness to avoid a rigid pattern.
+  const centre=previous.x+previous.w/2;
+  const midpoint=(lo+hi)/2;
+  if(midpoint>centre) lo=Math.max(lo,lo+(hi-lo)*.22);
+  else hi=Math.min(hi,hi-(hi-lo)*.22);
+  return rand(Math.min(lo,hi),Math.max(lo,hi));
+}
+
+function addOptionalBranch(main,step){
+  if(Math.random()>.52)return;
+  const bw=rand(76,132);
+  const edge=28;
+  const maxX=Math.max(edge,world.width-bw-edge);
+  const mainCenter=main.x+main.w/2;
+  // Bias branches toward the opposite side from the main ledge.
+  let lo,hi;
+  if(mainCenter<world.width*.5){lo=Math.max(edge,world.width*.58-bw);hi=maxX;}
+  else {lo=edge;hi=Math.min(maxX,world.width*.42);}
+  if(lo>hi){lo=edge;hi=maxX;}
+  const bx=rand(lo,hi);
+  const by=main.y+rand(-20,34);
+  const overlaps=platforms.some(p=>!p.dead&&Math.abs(p.y-by)<20&&bx<p.x+p.w+22&&bx+bw>p.x-22);
+  if(!overlaps)addPlatform(bx,by,bw,Math.random()<.12?'unstable':'solid',false);
 }
 
 function generateInitial(){
   platforms=[];
   wires=[];
-  const startW=Math.min(240,world.width-100);
+  const startW=Math.min(220,world.width-100);
   let previous=addPlatform((world.width-startW)/2,120,startW,'solid',true);
   routePlatform=previous;
-
-  // A guaranteed climbable spine: each required platform is within a reachable
-  // horizontal range of the previous one, but positions and widths vary.
   let y=previous.y;
   const route=[];
   for(let i=0;i<22;i++){
-    y-=rand(58,82);
-    const pw=rand(108,174);
-    const x=reachablePlatformX(previous,pw);
-    const next=addPlatform(x,y,pw,Math.random()<.08?'unstable':'solid',true);
+    y-=rand(68,84);
+    const pw=rand(112,164);
+    const x=reachablePlatformX(previous,pw,i);
+    const next=addPlatform(x,y,pw,Math.random()<.07?'unstable':'solid',true);
     route.push(next);
+    addOptionalBranch(next,i);
     previous=next;
-
-    // Optional ledges branch away from the spine. They are decorative choices,
-    // not required links, and never replace the reachable route.
-    if(Math.random()<.58){
-      const bw=rand(72,132);
-      const bx=rand(28,Math.max(29,world.width-bw-28));
-      const by=y+rand(-24,34);
-      if(Math.abs(bx-x)>Math.min(bw,pw)*.45){
-        addPlatform(bx,by,bw,Math.random()<.12?'unstable':'solid',false);
-      }
-    }
   }
 
-  // Only a few wires at the start, deliberately spread over the generated height.
-  // Avoid clustering all wires near y=0 when route y-values are negative.
+  // Start with just two separated wires, distributed through the opening section.
   const topY=route[route.length-1].y;
-  const wireCount=2;
-  for(let i=0;i<wireCount;i++){
-    const t=(i+1)/(wireCount+1);
-    const wy=120+(topY-120)*t+rand(-45,45);
-    const wx=rand(50,Math.max(51,world.width-50));
-    addWire(wx,wy,wy+rand(75,125));
+  for(let i=0;i<2;i++){
+    const t=(i+1)/3;
+    const wy=120+(topY-120)*t+rand(-30,30);
+    const wx=rand(55,Math.max(56,world.width-55));
+    addWire(wx,wy,wy+rand(65,105));
   }
   routePlatform=route[route.length-1];
 }
@@ -256,24 +283,16 @@ function generateNextSection(){
   if(!routePlatform)return;
   const previous=routePlatform;
   const difficulty=Math.min(1,runHeight/2200);
-  const py=previous.y-rand(58,82);
-  const pw=rand(108,168)-difficulty*5;
-  const x=reachablePlatformX(previous,pw);
-  const next=addPlatform(x,py,pw,Math.random()<.08?'unstable':'solid',true);
+  const py=previous.y-rand(68,84);
+  const pw=rand(112,160)-difficulty*4;
+  const x=reachablePlatformX(previous,pw,Math.floor(runHeight/75));
+  const next=addPlatform(x,py,pw,Math.random()<.07?'unstable':'solid',true);
+  addOptionalBranch(next,Math.floor(runHeight/75));
 
-  // Optional ledges can be widely scattered, while the required route remains reachable.
-  if(Math.random()<.62){
-    const bw=rand(72,138);
-    const by=py+rand(-28,38);
-    const bx=rand(28,Math.max(29,world.width-bw-28));
-    if(Math.abs(bx-x)>Math.min(bw,pw)*.45){
-      addPlatform(bx,by,bw,Math.random()<.14?'unstable':'solid',false);
-    }
-  }
-  // Wires are uncommon, so they remain a deliberate traversal option rather than clutter.
+  // Wires remain uncommon and spread through the route rather than clustering.
   if(Math.random()<.12){
     const wx=rand(45,Math.max(46,world.width-45));
-    addWire(wx,py-rand(15,45),py+rand(45,95));
+    addWire(wx,py-rand(20,42),py+rand(45,85));
   }
   routePlatform=next;
 }
