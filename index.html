@@ -196,52 +196,84 @@ function addWire(x,y1,y2){
   wires.push({x,y1,y2});
 }
 
+function reachablePlatformX(previous,pw){
+  // Keep the next required ledge within a generous horizontal jump/dash envelope.
+  // The target can still shift left or right, but never beyond a plausible landing.
+  const margin=18;
+  const reach=118;
+  const minX=Math.max(28,previous.x-pw+margin,previous.x- reach);
+  const maxX=Math.min(world.width-pw-28,previous.x+previous.w-margin+reach);
+  const safeMin=Math.max(28,Math.min(minX,world.width-pw-28));
+  const safeMax=Math.max(safeMin,Math.min(maxX,world.width-pw-28));
+  return rand(safeMin,safeMax);
+}
+
 function generateInitial(){
   platforms=[];
   wires=[];
   const startW=Math.min(240,world.width-100);
-  routePlatform=addPlatform((world.width-startW)/2,120,startW,'solid',true);
+  let previous=addPlatform((world.width-startW)/2,120,startW,'solid',true);
+  routePlatform=previous;
 
-  // Scatter ledges across the shaft instead of arranging them into a visible staircase.
-  // Vertical spacing remains within the movement envelope, but there is no obvious left-right route.
-  let y=routePlatform.y;
+  // A guaranteed climbable spine: each required platform is within a reachable
+  // horizontal range of the previous one, but positions and widths vary.
+  let y=previous.y;
+  const route=[];
   for(let i=0;i<22;i++){
-    y-=rand(58,100);
-    const pw=rand(95,175);
-    const x=rand(38,Math.max(39,world.width-pw-38));
-    const type=Math.random()<.10?'unstable':'solid';
-    const p=addPlatform(x,y,pw,type,false);
-    if(i%4===0) p.mainRoute=true;
+    y-=rand(58,82);
+    const pw=rand(108,174);
+    const x=reachablePlatformX(previous,pw);
+    const next=addPlatform(x,y,pw,Math.random()<.08?'unstable':'solid',true);
+    route.push(next);
+    previous=next;
+
+    // Optional ledges branch away from the spine. They are decorative choices,
+    // not required links, and never replace the reachable route.
+    if(Math.random()<.58){
+      const bw=rand(72,132);
+      const bx=rand(28,Math.max(29,world.width-bw-28));
+      const by=y+rand(-24,34);
+      if(Math.abs(bx-x)>Math.min(bw,pw)*.45){
+        addPlatform(bx,by,bw,Math.random()<.12?'unstable':'solid',false);
+      }
+    }
   }
 
-  // Wires are independent vertical opportunities, not bridges linking every ledge.
-  for(let i=0;i<7;i++){
-    const wy=rand(20,Math.max(21,y+100));
-    const wx=rand(48,Math.max(49,world.width-48));
-    addWire(wx,wy,wy+rand(75,155));
+  // Only a few wires at the start, deliberately spread over the generated height.
+  // Avoid clustering all wires near y=0 when route y-values are negative.
+  const topY=route[route.length-1].y;
+  const wireCount=2;
+  for(let i=0;i<wireCount;i++){
+    const t=(i+1)/(wireCount+1);
+    const wy=120+(topY-120)*t+rand(-45,45);
+    const wx=rand(50,Math.max(51,world.width-50));
+    addWire(wx,wy,wy+rand(75,125));
   }
-  routePlatform=platforms[platforms.length-1];
+  routePlatform=route[route.length-1];
 }
 
 function generateNextSection(){
   if(!routePlatform)return;
   const previous=routePlatform;
   const difficulty=Math.min(1,runHeight/2200);
-  const py=previous.y-rand(58,100);
-  const pw=rand(95,170)-difficulty*8;
-  const x=rand(38,Math.max(39,world.width-pw-38));
-  const next=addPlatform(x,py,pw,Math.random()<.12?'unstable':'solid',false);
+  const py=previous.y-rand(58,82);
+  const pw=rand(108,168)-difficulty*5;
+  const x=reachablePlatformX(previous,pw);
+  const next=addPlatform(x,py,pw,Math.random()<.08?'unstable':'solid',true);
 
-  // Occasional independent ledges add choices without revealing a single intended path.
-  if(Math.random()<.72){
-    const bw=rand(80,140);
-    const by=py+rand(-30,48);
-    const bx=rand(32,Math.max(33,world.width-bw-32));
-    addPlatform(bx,by,bw,Math.random()<.16?'unstable':'solid',false);
+  // Optional ledges can be widely scattered, while the required route remains reachable.
+  if(Math.random()<.62){
+    const bw=rand(72,138);
+    const by=py+rand(-28,38);
+    const bx=rand(28,Math.max(29,world.width-bw-28));
+    if(Math.abs(bx-x)>Math.min(bw,pw)*.45){
+      addPlatform(bx,by,bw,Math.random()<.14?'unstable':'solid',false);
+    }
   }
-  if(Math.random()<.28){
+  // Wires are uncommon, so they remain a deliberate traversal option rather than clutter.
+  if(Math.random()<.12){
     const wx=rand(45,Math.max(46,world.width-45));
-    addWire(wx,py-rand(15,55),py+rand(50,110));
+    addWire(wx,py-rand(15,45),py+rand(45,95));
   }
   routePlatform=next;
 }
@@ -882,8 +914,13 @@ function draw(){
     ctx.fillStyle='rgba(2,6,14,.72)';
     ctx.fillRect(0,0,viewW,vh);
 
-    const menuOffset=(vh-562)/2;
+    const menuScale=clamp(Math.min(viewW/700,vh/500),0.82,1.35);
+    const menuOffset=(vh-562*menuScale)/2;
     const menuX=viewW/2;
+    ctx.save();
+    ctx.translate(menuX,menuOffset);
+    ctx.scale(menuScale,menuScale);
+    ctx.translate(-500,0);
     ctx.textAlign='center';
     ctx.fillStyle='#8af6ff';
     ctx.font='700 13px ui-sans-serif,system-ui';
@@ -895,22 +932,22 @@ function draw(){
         :gameState==='over'
           ?'SIGNAL LOST'
           :'PAUSED',
-      menuX,190+menuOffset
+      500,190
     );
 
     ctx.letterSpacing='0px';
     ctx.fillStyle='#f1fbff';
-    ctx.font=gameState==='over'?'800 48px ui-sans-serif,system-ui':'800 46px ui-sans-serif,system-ui';
+    ctx.font=gameState==='over'?'900 60px ui-sans-serif,system-ui':'900 58px ui-sans-serif,system-ui';
 
     ctx.fillText(
       gameState==='over'
-        ?'CAPTURED'
+        ?'CORRUPTED'
         :'NEVERSTILL',
-      menuX,246+menuOffset
+      500,246
     );
 
     ctx.fillStyle='#8ba5bd';
-    ctx.font='14px ui-sans-serif,system-ui';
+    ctx.font='17px ui-sans-serif,system-ui';
 
     ctx.fillText(
       gameState==='ready'
@@ -919,44 +956,45 @@ function draw(){
           ?'You reached '+Math.floor(runHeight)+
             ' metres in '+formatTime(elapsed)
           :'Take a breath.',
-      menuX,278+menuOffset
+      500,278
     );
 
     if(gameState==='over'){
-      ctx.font='12px ui-sans-serif,system-ui';
+      ctx.font='14px ui-sans-serif,system-ui';
 
       ctx.fillText(
         'BEST HEIGHT  '+records.bestHeight+
         ' m     BEST TIME  '+formatTime(records.bestTime)+
         '     RUNS  '+records.runs,
-        menuX,314+menuOffset
+        500,314
       );
     }
 
     ctx.fillStyle='#071e2b';
-    roundRect(menuX-110,350+menuOffset,220,48,9);
+    roundRect(365,342,270,64,12);
     ctx.fill();
 
     ctx.strokeStyle='#4edeea';
     ctx.stroke();
 
     ctx.fillStyle='#d8fcff';
-    ctx.font='700 13px ui-sans-serif,system-ui';
+    ctx.font='800 18px ui-sans-serif,system-ui';
 
     ctx.fillText(
-      gameState==='ready'?'START CLIMBING':'TRY AGAIN',
-      menuX,379+menuOffset
+      gameState==='ready'?'START':'TRY AGAIN',
+      500,376
     );
 
     ctx.fillStyle='#8199b1';
-    ctx.font='11px ui-sans-serif,system-ui';
+    ctx.font='13px ui-sans-serif,system-ui';
 
     ctx.fillText(
       'PRESS SPACE / ENTER OR TAP THE BUTTON',
-      menuX,420+menuOffset
+      500,435
     );
 
     ctx.textAlign='left';
+    ctx.restore();
   }
 
   // Mobile controls.
@@ -973,8 +1011,8 @@ function draw(){
 
     controls=[
       {id:'stick',x:joystick.x,y:cy,r:joystick.r},
-      {id:'jump',x:viewW-190,y:cy,r:43},
-      {id:'dash',x:viewW-88,y:cy,r:39}
+      {id:'jump',x:viewW-190,y:cy,r:52},
+      {id:'dash',x:viewW-88,y:cy,r:48}
     ];
 
     // Circular analogue joystick.
@@ -1018,7 +1056,7 @@ function draw(){
       ctx.stroke();
 
       ctx.fillStyle='#d5fcff';
-      ctx.font='700 14px ui-sans-serif,system-ui';
+      ctx.font='800 17px ui-sans-serif,system-ui';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
 
