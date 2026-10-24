@@ -1,4 +1,4 @@
-const CACHE_NAME = "glitched-v1";
+const CACHE_NAME = "glitched-v2";
 const APP_BASE = "/Glitched/";
 
 const APP_FILES = [
@@ -6,7 +6,8 @@ const APP_FILES = [
   APP_BASE + "index.html",
   APP_BASE + "manifest.json",
   APP_BASE + "192.png",
-  APP_BASE + "512.png"
+  APP_BASE + "512.png",
+  APP_BASE + "Pixelated avatar.png"
 ];
 
 self.addEventListener("install", event => {
