@@ -928,6 +928,29 @@ function draw(){
         ctx.fillStyle='rgba(16,35,51,.9)';ctx.fillRect(x-4,my,5,20);
         ctx.fillStyle='rgba(61,190,211,.24)';ctx.fillRect(x-3,my+3,2,12);
       }
+      // Occasional varied facade modules: service ribs, maintenance bays and signal strips.
+      const facadeVariant = Math.floor(noise(seed+21)*5);
+      if(facadeVariant===0){
+        ctx.fillStyle='rgba(1,6,15,.88)';ctx.fillRect(x+bw*.22,y+bh*.18,Math.max(9,bw*.48),Math.min(48,bh*.18));
+        ctx.fillStyle='rgba(45,108,131,.42)';ctx.fillRect(x+bw*.22,y+bh*.18,Math.max(9,bw*.48),2);
+        for(let rib=0;rib<4;rib++){
+          ctx.fillStyle='rgba(57,107,126,.36)';ctx.fillRect(x+bw*.25+rib*bw*.10,y+bh*.2,2,Math.min(38,bh*.14));
+        }
+      } else if(facadeVariant===1){
+        const bayY=y+bh*(.3+noise(seed+22)*.32);
+        ctx.fillStyle='rgba(0,5,13,.92)';ctx.fillRect(x+8,bayY,bw-16,24);
+        ctx.fillStyle='rgba(58,205,224,.18)';ctx.fillRect(x+9,bayY+3,bw-18,2);
+        ctx.fillStyle='rgba(255,71,161,.16)';ctx.fillRect(x+9,bayY+18,bw-18,2);
+      } else if(facadeVariant===2){
+        ctx.strokeStyle='rgba(66,135,157,.34)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(x+bw*.18,y+bh*.2);ctx.lineTo(x+bw*.82,y+bh*.35);ctx.lineTo(x+bw*.82,y+bh*.62);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x+bw*.18,y+bh*.2);ctx.lineTo(x+bw*.18,y+bh*.48);ctx.stroke();
+      } else if(facadeVariant===3){
+        const lightY=y+bh*(.24+noise(seed+23)*.5);
+        ctx.fillStyle='rgba(9,20,32,.92)';ctx.fillRect(x+bw*.68,lightY,5,Math.min(34,bh*.14));
+        ctx.fillStyle='rgba(70,222,238,.52)';ctx.fillRect(x+bw*.68+1,lightY+3,2,Math.min(12,bh*.06));
+      }
+
       // Roof crown, aerials and dish.
       ctx.fillStyle='#0a1c2b';ctx.fillRect(x-4,y,bw+8,7);
       ctx.strokeStyle=`rgba(75,189,211,${.3*(1-fracture)+.05})`;ctx.lineWidth=1;
@@ -1134,6 +1157,55 @@ function draw(){
       }
     }
     ctx.restore();
+  }
+
+  // Occasional cinematic volumetric light flashes between the towers.
+  // Deterministic event timing keeps the effect varied but stable across frames.
+  {
+    const flashCycle = 7.8;
+    const flashIndex = Math.floor(elapsed / flashCycle);
+    const flashPhase = (elapsed % flashCycle) / flashCycle;
+    const flashSeed = flashIndex * 17.31 + 4.7;
+    const flashNoise = (n) => { const v=Math.sin(n*127.1+311.7)*43758.5453; return v-Math.floor(v); };
+    const flashStart = .10 + flashNoise(flashSeed) * .56;
+    const flashAge = flashPhase - flashStart;
+    const flashDuration = .12 + flashNoise(flashSeed+2) * .16;
+    if (flashAge >= 0 && flashAge < flashDuration) {
+      const pulse = Math.sin(Math.PI * flashAge / flashDuration);
+      const strength = (.045 + flashNoise(flashSeed+3)*.045) * pulse;
+      const palette = [
+        [224,247,255], [255,133,207], [83,225,255]
+      ];
+      const rgb = palette[Math.floor(flashNoise(flashSeed+1)*palette.length)];
+      const fx = viewW * (.16 + flashNoise(flashSeed+4)*.68);
+      const fy = vh * (.12 + flashNoise(flashSeed+5)*.60);
+      const radius = viewW * (.24 + flashNoise(flashSeed+6)*.20);
+
+      ctx.save();
+      // Soft bloom, kept low-opacity so the scene never blows out.
+      const bloom = ctx.createRadialGradient(fx,fy,2,fx,fy,radius);
+      bloom.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${strength})`);
+      bloom.addColorStop(.42, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${strength*.34})`);
+      bloom.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = bloom;
+      ctx.fillRect(0,0,viewW,vh);
+
+      // A few faint angled planes suggest light catching distant 3D structure.
+      ctx.globalAlpha = pulse * .10;
+      ctx.strokeStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.lineWidth = 1;
+      const slant = 26 + flashNoise(flashSeed+7)*44;
+      for(let k=0;k<3;k++){
+        const px = fx + (k-1)*radius*.22;
+        const py = fy + (k-1)*vh*.07;
+        ctx.beginPath();
+        ctx.moveTo(px-radius*.18,py);
+        ctx.lineTo(px+slant,py-radius*.12);
+        ctx.lineTo(px+radius*.12,py+radius*.08);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   // Side rails.
@@ -1771,12 +1843,13 @@ function drawEntity(x,y,w,h,ghost){
 
   // The artwork is narrow within its canvas, so enlarge it and widen the silhouette
   // without changing the physics/collision box.
-  const targetH = h * 2.55;
-  const targetW = targetH * avatarCrop.w / avatarCrop.h * 1.42;
+  const targetH = h * 3.35;
+  const targetW = targetH * avatarCrop.w / avatarCrop.h * 1.52;
   const drawX = x + w / 2 - targetW / 2;
   const drawY = y + h - targetH + 2;
 
   const grounded = !ghost && player.onGround;
+  const movingFace = Math.abs(player.vx) > 18 ? (player.vx < 0 ? -1 : 1) : (player.face < 0 ? -1 : 1);
   const running = grounded && Math.abs(player.vx) > 35;
   const climbing = !ghost && player.climbing;
   const airborne = !ghost && !player.onGround && !player.climbing;
@@ -1807,7 +1880,7 @@ function drawEntity(x,y,w,h,ghost){
     const cy = py + hDraw / 2;
     ctx.translate(cx, cy);
     ctx.rotate(rotation);
-    ctx.scale((player.face < 0 ? -1 : 1) * stretchX, squashY);
+    ctx.scale(movingFace * stretchX, squashY);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       avatarSprite,
@@ -1832,11 +1905,11 @@ function drawEntity(x,y,w,h,ghost){
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha *= .8 * dashAmt;
-    const trailX = player.face > 0 ? drawX - 10 : drawX + targetW + 2;
+    const trailX = movingFace > 0 ? drawX - 10 : drawX + targetW + 2;
     for (let i = 0; i < 5; i++) {
       ctx.fillStyle = i % 2 ? '#ff36c8' : '#48f4ff';
       ctx.fillRect(
-        trailX - (player.face > 0 ? i * 4 : -i * 4),
+        trailX - (movingFace > 0 ? i * 4 : -i * 4),
         drawY + targetH * (.27 + i * .115) + bob,
         5 + (i % 2) * 5, 1.5 + (i % 2)
       );
