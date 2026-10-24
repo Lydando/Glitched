@@ -1220,6 +1220,67 @@ function draw(){
     ctx.fillRect(x+5,0,2,vh);
   }
 
+  // Post-6000m visual shift: the world dims gradually as the experiment loses control.
+  const lateRun = clamp((runHeight - 6000) / 2400, 0, 1);
+  const darkness = lateRun * .48;
+  if (darkness > 0) {
+    ctx.fillStyle = `rgba(1,2,9,${darkness})`;
+    ctx.fillRect(0,0,viewW,vh);
+  }
+
+  // Geometric glitch apparitions: angular, floating 3D shards that phase in,
+  // linger briefly, then dissolve over 2–3 seconds. Each event has its own palette/shape.
+  if (runHeight >= 6000) {
+    const period = 4.4;
+    const eventIndex = Math.floor(elapsed / period);
+    const phase = (elapsed % period) / period;
+    const seed = eventIndex * 29.73 + 8.4;
+    const n = (v) => { const q=Math.sin(v*127.1+311.7)*43758.5453; return q-Math.floor(q); };
+    const start = .08 + n(seed) * .22;
+    const duration = 2.15 + n(seed+1) * .72;
+    const age = (elapsed % period) - start * period;
+    if (age >= 0 && age < duration) {
+      const progress = age / duration;
+      const fade = Math.min(clamp(progress/.16,0,1),clamp((1-progress)/.26,0,1));
+      const palette = [
+        {core:'236,249,255',edge:'154,222,245'},
+        {core:'255,129,207',edge:'255,75,178'},
+        {core:'84,229,255',edge:'39,161,230'}
+      ];
+      const tint=palette[Math.floor(n(seed+2)*palette.length)];
+      const cx=viewW*(.18+n(seed+3)*.64)+Math.sin(elapsed*1.3+seed)*7;
+      const cy=vh*(.18+n(seed+4)*.58)+Math.cos(elapsed*.8+seed)*5;
+      const size=15+n(seed+5)*24;
+      const rot=elapsed*.24+n(seed+6)*Math.PI;
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
+      ctx.globalAlpha=fade*(.48+lateRun*.16);
+      ctx.beginPath();
+      ctx.moveTo(0,-size*1.35);ctx.lineTo(size*.72,-size*.38);
+      ctx.lineTo(size*.58,size*.65);ctx.lineTo(-size*.12,size*1.05);
+      ctx.lineTo(-size*.82,size*.22);ctx.lineTo(-size*.62,-size*.62);ctx.closePath();
+      ctx.fillStyle=`rgba(${tint.core},${.035+lateRun*.025})`;ctx.fill();
+      ctx.strokeStyle=`rgba(${tint.edge},${.48*fade})`;ctx.lineWidth=1.1;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,-size*1.35);ctx.lineTo(size*.08,-size*.08);
+      ctx.lineTo(size*.58,size*.65);ctx.lineTo(-size*.12,size*1.05);
+      ctx.lineTo(size*.08,-size*.08);ctx.lineTo(-size*.62,-size*.62);ctx.closePath();
+      ctx.fillStyle=`rgba(${tint.edge},${.075*fade})`;ctx.fill();
+      ctx.strokeStyle=`rgba(${tint.core},${.28*fade})`;ctx.lineWidth=.8;
+      ctx.beginPath();ctx.moveTo(-size*.62,-size*.62);ctx.lineTo(size*.08,-size*.08);
+      ctx.lineTo(size*.72,-size*.38);ctx.moveTo(size*.08,-size*.08);
+      ctx.lineTo(-size*.12,size*1.05);ctx.stroke();
+      for(let shard=0;shard<4;shard++){
+        const sx=(n(seed+10+shard)-.5)*size*2.6;
+        const sy=(n(seed+20+shard)-.5)*size*2.3+progress*12;
+        const ss=2+n(seed+30+shard)*5;
+        ctx.globalAlpha=fade*(.18+n(seed+40+shard)*.28);
+        ctx.fillStyle=shard%2?`rgba(${tint.core},.8)`:`rgba(${tint.edge},.75)`;
+        ctx.beginPath();ctx.moveTo(sx,sy-ss);ctx.lineTo(sx+ss,sy);
+        ctx.lineTo(sx-ss*.3,sy+ss*.7);ctx.closePath();ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   // World objects: detailed industrial ledges and climbable power conduits.
   ctx.save();
   ctx.translate(0,-cam);
@@ -1450,9 +1511,34 @@ function draw(){
     if(x===wallLeft)ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
+  // Near-camera debris passes in front of the playfield, mostly at screen edges.
+  ctx.save();
+  for(let i=0;i<9;i++){
+    const seed=14400+i*13.7;
+    const rand=(v)=>{const q=Math.sin(v*127.1+311.7)*43758.5453;return q-Math.floor(q);};
+    const side=i%2===0?1:-1;
+    const baseX=side===1?viewW*(.025+(i%3)*.025):viewW*(.975-(i%3)*.025);
+    const drift=Math.sin(elapsed*(.22+(i%4)*.06)+seed)*9;
+    const screenY=rand(seed+1)*vh;
+    const size=7+(i%4)*3;
+    ctx.save();ctx.translate(baseX+drift,screenY);
+    ctx.rotate(Math.sin(elapsed*.18+seed)*.16+(side<0?Math.PI:0));
+    ctx.globalAlpha=.20+(i%3)*.055;ctx.fillStyle='#07111e';
+    ctx.strokeStyle=i%4===0?'rgba(255,91,190,.32)':'rgba(89,207,230,.32)';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(-size,-size*.4);ctx.lineTo(-size*.3,-size);
+    ctx.lineTo(size*.8,-size*.55);ctx.lineTo(size,size*.2);
+    ctx.lineTo(size*.15,size*.8);ctx.lineTo(-size*.7,size*.45);ctx.closePath();
+    ctx.fill();ctx.stroke();
+    ctx.strokeStyle='rgba(129,226,239,.24)';
+    ctx.beginPath();ctx.moveTo(-size*.4,-size*.2);ctx.lineTo(size*.45,size*.12);ctx.lineTo(size*.1,size*.5);ctx.stroke();
+    if(i%3===0){ctx.strokeStyle='rgba(87,204,226,.3)';ctx.beginPath();ctx.moveTo(size*.4,size*.45);ctx.lineTo(size*.7,size*1.25);ctx.stroke();}
+    ctx.restore();
+  }
+  ctx.restore();
+
   // Player and dash echoes.
   for(const t of player.trail){
-    ctx.globalAlpha=clamp(t.life/.16,0,1)*.3;
+    ctx.globalAlpha=clamp(t.life/.16,0,1)*.46;
     drawEntity(t.x,t.y,player.w,player.h,true);
   }
 
@@ -1832,92 +1918,9 @@ function drawEntityFallback(x,y,w,h,ghost){
 }
 
 function drawEntity(x,y,w,h,ghost){
-  if (!avatarReady || !avatarCrop) {
-    drawEntityFallback(x,y,w,h,ghost);
-    return;
-  }
-
-  ctx.save();
-  const alpha = ghost ? .30 : 1;
-  ctx.globalAlpha *= alpha;
-
-  // The artwork is narrow within its canvas, so enlarge it and widen the silhouette
-  // without changing the physics/collision box.
-  const targetH = h * 3.35;
-  const targetW = targetH * avatarCrop.w / avatarCrop.h * 1.52;
-  const drawX = x + w / 2 - targetW / 2;
-  const drawY = y + h - targetH + 2;
-
-  const grounded = !ghost && player.onGround;
-  const movingFace = Math.abs(player.vx) > 18 ? (player.vx < 0 ? -1 : 1) : (player.face < 0 ? -1 : 1);
-  const running = grounded && Math.abs(player.vx) > 35;
-  const climbing = !ghost && player.climbing;
-  const airborne = !ghost && !player.onGround && !player.climbing;
-  const dashAmt = !ghost ? clamp(player.dashVisual / .27, 0, 1) : 0;
-
-  // Lightweight procedural animation using the single available pose:
-  // bounce while running, a pull-up bob while climbing, and a slight lean in motion.
-  const runPhase = elapsed * 12.5;
-  const climbPhase = elapsed * 8.5;
-  const bob = running
-    ? Math.abs(Math.sin(runPhase)) * 2.3
-    : climbing
-      ? Math.sin(climbPhase) * 2.1
-      : airborne
-        ? Math.sin(elapsed * 7) * .8
-        : Math.sin(elapsed * 2.4) * .55;
-  const squashY = running ? 1 - Math.abs(Math.sin(runPhase)) * .035 : 1;
-  const stretchX = running ? 1 + Math.abs(Math.sin(runPhase)) * .025 : 1;
-  const lean = dashAmt > 0 ? player.dashDir * .12 * dashAmt
-    : running ? clamp(player.vx / 950, -.055, .055)
-    : climbing ? Math.sin(climbPhase) * .025
-    : airborne ? clamp(player.vx / 1200, -.04, .04) : 0;
-
-  function drawPose(px, py, wDraw, hDraw, opacity, rotation=0) {
-    ctx.save();
-    ctx.globalAlpha *= opacity;
-    const cx = px + wDraw / 2;
-    const cy = py + hDraw / 2;
-    ctx.translate(cx, cy);
-    ctx.rotate(rotation);
-    ctx.scale(movingFace * stretchX, squashY);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      avatarSprite,
-      avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
-      -wDraw / 2, -hDraw / 2, wDraw, hDraw
-    );
-    ctx.restore();
-  }
-
-  // Dash afterimages make the existing static pose feel faster until true frames exist.
-  if (dashAmt > 0 && !ghost) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    drawPose(drawX - player.dashDir * (8 + dashAmt * 12), drawY + bob,
-      targetW, targetH, .26 * dashAmt, lean * .65);
-    ctx.restore();
-  }
-
-  drawPose(drawX, drawY + bob, targetW, targetH, 1, lean);
-
-  if (dashAmt > 0 && !ghost) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha *= .8 * dashAmt;
-    const trailX = movingFace > 0 ? drawX - 10 : drawX + targetW + 2;
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = i % 2 ? '#ff36c8' : '#48f4ff';
-      ctx.fillRect(
-        trailX - (movingFace > 0 ? i * 4 : -i * 4),
-        drawY + targetH * (.27 + i * .115) + bob,
-        5 + (i % 2) * 5, 1.5 + (i % 2)
-      );
-    }
-    ctx.restore();
-  }
-
-  ctx.restore();
+  // The character is a living geometric glitch rather than a static imported sprite.
+  // Keep its visual size close to the original gameplay scale.
+  drawEntityFallback(x,y,w,h,ghost);
 }
 
 function roundRect(x,y,w,h,r){
