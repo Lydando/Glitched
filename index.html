@@ -540,7 +540,7 @@ function step(dt){
       player.trail.push({
         x:player.x,
         y:player.y,
-        life:.32
+        life:.16
       });
 
       if(player.trail.length>12){
@@ -1569,7 +1569,7 @@ function draw(){
 
   // Player and dash echoes.
   for(const t of player.trail){
-    ctx.globalAlpha=clamp(t.life/.32,0,1)*.72;
+    ctx.globalAlpha=clamp(t.life/.16,0,1)*.3;
     drawEntity(t.x,t.y,player.w,player.h,true);
   }
 
@@ -1885,11 +1885,60 @@ function drawEntityFallback(x,y,w,h,ghost){
   ctx.restore();
 }
 function drawEntity(x,y,w,h,ghost){
-  // The character is a living geometric glitch rather than a static imported sprite.
-  // Keep its visual size close to the original gameplay scale.
-  drawEntityFallback(x,y,w,h,ghost);
-}
+  ctx.save();
 
+  ctx.translate(x+w/2,y+h/2);
+  ctx.globalAlpha=ghost?.45:1;
+
+  let glow=ctx.createRadialGradient(0,0,1,0,0,29);
+  glow.addColorStop(0,'rgba(72,245,255,.26)');
+  glow.addColorStop(1,'rgba(72,245,255,0)');
+
+  ctx.fillStyle=glow;
+  ctx.fillRect(-31,-31,62,62);
+
+  ctx.rotate(Math.sin(elapsed*7)*.045);
+
+  ctx.fillStyle='#122b41';
+  ctx.strokeStyle='#79f7ff';
+  ctx.lineWidth=1.4;
+  ctx.shadowColor='#39efff';
+  ctx.shadowBlur=ghost?2:12;
+
+  ctx.beginPath();
+  ctx.moveTo(-9,-17);
+  ctx.lineTo(6,-19);
+  ctx.lineTo(13,-7);
+  ctx.lineTo(10,9);
+  ctx.lineTo(1,18);
+  ctx.lineTo(-12,10);
+  ctx.lineTo(-14,-5);
+  ctx.closePath();
+
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#d6ffff';
+
+  ctx.beginPath();
+  ctx.moveTo(-4,-9);
+  ctx.lineTo(7,-12);
+  ctx.lineTo(4,-2);
+  ctx.lineTo(-5,3);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle='#ff72d4';
+  ctx.fillRect(-10,7,4,3);
+  ctx.fillRect(7,10,3,4);
+
+  ctx.fillStyle='#72f8ff';
+  ctx.fillRect(-17,-3,3,5);
+  ctx.fillRect(12,-14,4,4);
+
+  ctx.restore();
+}
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
   ctx.roundRect(x,y,w,h,r);
