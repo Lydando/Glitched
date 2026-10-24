@@ -29,41 +29,7 @@ canvas{display:block;width:100%;height:100%;outline:0;touch-action:none}
 const canvas=document.getElementById('game');
 const ctx=canvas.getContext('2d');
 
-// Character sprite: trim transparent margins once loaded, while preserving the source PNG.
-const avatarSprite = new Image();
-let avatarReady = false;
-let avatarCrop = null;
-avatarSprite.onload = () => {
-  const source = document.createElement('canvas');
-  source.width = avatarSprite.naturalWidth;
-  source.height = avatarSprite.naturalHeight;
-  const sourceCtx = source.getContext('2d', { willReadFrequently: true });
-  sourceCtx.drawImage(avatarSprite, 0, 0);
-  const pixels = sourceCtx.getImageData(0, 0, source.width, source.height).data;
-  let minX = source.width, minY = source.height, maxX = -1, maxY = -1;
-  for (let y = 0; y < source.height; y++) {
-    for (let x = 0; x < source.width; x++) {
-      if (pixels[(y * source.width + x) * 4 + 3] > 8) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (maxX >= minX && maxY >= minY) {
-    const pad = 3;
-    minX = Math.max(0, minX - pad);
-    minY = Math.max(0, minY - pad);
-    maxX = Math.min(source.width - 1, maxX + pad);
-    maxY = Math.min(source.height - 1, maxY + pad);
-    avatarCrop = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
-    avatarReady = true;
-  }
-};
-avatarSprite.onerror = () => { avatarReady = false; };
-avatarSprite.src = './Pixelated%20avatar.png';
-
+// Player is drawn procedurally as a faceted glitch entity; no external avatar sprite is loaded.
 let W=innerWidth,H=innerHeight,DPR=1;
 
 function resize(){
@@ -574,7 +540,7 @@ function step(dt){
       player.trail.push({
         x:player.x,
         y:player.y,
-        life:.16
+        life:.32
       });
 
       if(player.trail.length>12){
@@ -1538,7 +1504,7 @@ function draw(){
 
   // Player and dash echoes.
   for(const t of player.trail){
-    ctx.globalAlpha=clamp(t.life/.16,0,1)*.46;
+    ctx.globalAlpha=clamp(t.life/.32,0,1)*.72;
     drawEntity(t.x,t.y,player.w,player.h,true);
   }
 
