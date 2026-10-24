@@ -1194,59 +1194,73 @@ function draw(){
     ctx.fillRect(0,0,viewW,vh);
   }
 
-  // Geometric glitch apparitions: angular, floating 3D shards that phase in,
-  // linger briefly, then dissolve over 2–3 seconds. Each event has its own palette/shape.
-  if (runHeight >= 6000) {
-    const period = 4.4;
-    const eventIndex = Math.floor(elapsed / period);
-    const phase = (elapsed % period) / period;
-    const seed = eventIndex * 29.73 + 8.4;
-    const n = (v) => { const q=Math.sin(v*127.1+311.7)*43758.5453; return q-Math.floor(q); };
-    const start = .08 + n(seed) * .22;
-    const duration = 2.15 + n(seed+1) * .72;
-    const age = (elapsed % period) - start * period;
-    if (age >= 0 && age < duration) {
-      const progress = age / duration;
-      const fade = Math.min(clamp(progress/.16,0,1),clamp((1-progress)/.26,0,1));
-      const palette = [
-        {core:'236,249,255',edge:'154,222,245'},
-        {core:'255,129,207',edge:'255,75,178'},
-        {core:'84,229,255',edge:'39,161,230'}
-      ];
-      const tint=palette[Math.floor(n(seed+2)*palette.length)];
-      const cx=viewW*(.18+n(seed+3)*.64)+Math.sin(elapsed*1.3+seed)*7;
-      const cy=vh*(.18+n(seed+4)*.58)+Math.cos(elapsed*.8+seed)*5;
-      const size=15+n(seed+5)*24;
-      const rot=elapsed*.24+n(seed+6)*Math.PI;
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
-      ctx.globalAlpha=fade*(.48+lateRun*.16);
-      ctx.beginPath();
-      ctx.moveTo(0,-size*1.35);ctx.lineTo(size*.72,-size*.38);
-      ctx.lineTo(size*.58,size*.65);ctx.lineTo(-size*.12,size*1.05);
-      ctx.lineTo(-size*.82,size*.22);ctx.lineTo(-size*.62,-size*.62);ctx.closePath();
-      ctx.fillStyle=`rgba(${tint.core},${.035+lateRun*.025})`;ctx.fill();
-      ctx.strokeStyle=`rgba(${tint.edge},${.48*fade})`;ctx.lineWidth=1.1;ctx.stroke();
-      ctx.beginPath();ctx.moveTo(0,-size*1.35);ctx.lineTo(size*.08,-size*.08);
-      ctx.lineTo(size*.58,size*.65);ctx.lineTo(-size*.12,size*1.05);
-      ctx.lineTo(size*.08,-size*.08);ctx.lineTo(-size*.62,-size*.62);ctx.closePath();
-      ctx.fillStyle=`rgba(${tint.edge},${.075*fade})`;ctx.fill();
-      ctx.strokeStyle=`rgba(${tint.core},${.28*fade})`;ctx.lineWidth=.8;
-      ctx.beginPath();ctx.moveTo(-size*.62,-size*.62);ctx.lineTo(size*.08,-size*.08);
-      ctx.lineTo(size*.72,-size*.38);ctx.moveTo(size*.08,-size*.08);
-      ctx.lineTo(-size*.12,size*1.05);ctx.stroke();
-      for(let shard=0;shard<4;shard++){
-        const sx=(n(seed+10+shard)-.5)*size*2.6;
-        const sy=(n(seed+20+shard)-.5)*size*2.3+progress*12;
-        const ss=2+n(seed+30+shard)*5;
-        ctx.globalAlpha=fade*(.18+n(seed+40+shard)*.28);
-        ctx.fillStyle=shard%2?`rgba(${tint.core},.8)`:`rgba(${tint.edge},.75)`;
-        ctx.beginPath();ctx.moveTo(sx,sy-ss);ctx.lineTo(sx+ss,sy);
-        ctx.lineTo(sx-ss*.3,sy+ss*.7);ctx.closePath();ctx.fill();
+  // 3D glitch lightning: jagged longitudinal edges and cross-struts recede toward a vanishing point.
+  if(runHeight>=6000){
+    const n=v=>{const q=Math.sin(v*127.1+311.7)*43758.5453;return q-Math.floor(q);};
+    const period=3.7;
+    const event=Math.floor(elapsed/period);
+    const age=elapsed%period;
+    const seed=event*41.7+4.2;
+    const begin=.12+n(seed)*.38;
+    const duration=2.25+n(seed+1)*.55;
+    const local=age-begin;
+    if(local>=0&&local<duration){
+      const p=local/duration;
+      const fade=Math.min(clamp(p/.13,0,1),clamp((1-p)/.22,0,1));
+      const palette=[['235,252,255','111,229,255'],['255,147,222','255,65,188'],['109,238,255','47,153,255']];
+      const colors=palette[Math.floor(n(seed+2)*palette.length)];
+      const ox=viewW*(.18+n(seed+3)*.64), oy=vh*(.2+n(seed+4)*.58);
+      const angle=(n(seed+5)-.5)*.75, length=vh*(.38+n(seed+6)*.38);
+      const width=viewW*(.08+n(seed+7)*.12);
+      ctx.save();ctx.translate(ox,oy);ctx.rotate(angle);
+      ctx.globalAlpha=fade*(.6+lateRun*.25);
+      // Depth rails: start wide and converge, giving a long 3D corridor/lightning bolt.
+      const rails=[];
+      for(let side=-1;side<=1;side+=2){
+        const pts=[];let x=side*width,y=length*.42;
+        pts.push([x,y]);
+        for(let k=1;k<=7;k++){
+          const q=k/7;
+          x=side*width*(1-q*.88)+(n(seed+side*11+k)-.5)*width*.22;
+          y=length*.42-q*length;
+          pts.push([x,y]);
+        }
+        rails.push(pts);
       }
+      // Broad soft glow behind the crisp, angular lightning structure.
+      ctx.lineCap='round';ctx.lineJoin='round';
+      for(let r=0;r<2;r++){
+        ctx.beginPath();ctx.moveTo(rails[r][0][0],rails[r][0][1]);
+        rails[r].slice(1).forEach(pt=>ctx.lineTo(pt[0],pt[1]));
+        ctx.strokeStyle=`rgba(${colors[1]},${r===0?.18:.12})`;
+        ctx.lineWidth=r===0?10:6;ctx.stroke();
+      }
+      // Interconnected jagged struts and inner forks.
+      for(let k=0;k<7;k++){
+        const q=k/7, y=length*.42-q*length;
+        const half=width*(1-q*.88);
+        const lx=rails[0][k+1][0], rx=rails[1][k+1][0];
+        ctx.beginPath();
+        ctx.moveTo(lx,y);ctx.lineTo((lx+rx)/2+(n(seed+k)-.5)*half*.8,y-length*.045);
+        ctx.lineTo(rx,y-length*.015);
+        ctx.strokeStyle=`rgba(${colors[0]},${.72*fade})`;ctx.lineWidth=1.25;ctx.stroke();
+        if(k%2===0){
+          const fork=(n(seed+30+k)-.5)*half*1.1;
+          ctx.beginPath();ctx.moveTo((lx+rx)/2,y-length*.045);
+          ctx.lineTo((lx+rx)/2+fork,y-length*(.09+n(seed+40+k)*.07));
+          ctx.strokeStyle=`rgba(${colors[1]},${.7*fade})`;ctx.lineWidth=.9;ctx.stroke();
+        }
+      }
+      // Sharp bright spine running through the depth.
+      ctx.beginPath();ctx.moveTo(0,length*.43);
+      for(let k=1;k<=12;k++){
+        const q=k/12;
+        ctx.lineTo((n(seed+60+k)-.5)*width*(1-q)*.8,-q*length);
+      }
+      ctx.strokeStyle=`rgba(${colors[0]},${.9*fade})`;ctx.lineWidth=1.5;ctx.stroke();
       ctx.restore();
     }
   }
-
   // World objects: detailed industrial ledges and climbable power conduits.
   ctx.save();
   ctx.translate(0,-cam);
@@ -1502,6 +1516,57 @@ function draw(){
   }
   ctx.restore();
 
+  // Environmental corruption escalates after 9k, becoming a full backdrop failure at 15k.
+  if(runHeight>=9000){
+    const intensity=clamp((runHeight-9000)/6000,0,1);
+    const n=v=>{const q=Math.sin(v*91.17+elapsed*13.7)*43758.5453;return q-Math.floor(q);};
+    const pulse=.35+.65*(.5+.5*Math.sin(elapsed*(2+intensity*5)));
+    const bands=Math.floor(2+intensity*18);
+    ctx.save();
+    // Brief black cutouts make background structures appear to blink out and return.
+    for(let i=0;i<bands;i++){
+      const seed=Math.floor(elapsed*(1.6+intensity*5))+i*19;
+      if(n(seed)>(.72-intensity*.28))continue;
+      const y=n(seed+1)*vh;
+      const bh=2+n(seed+2)*(5+intensity*35);
+      ctx.globalAlpha=(.08+intensity*.28)*pulse;
+      ctx.fillStyle=n(seed+3)>.45?'#02030a':'#07101b';
+      ctx.fillRect(0,y,viewW,bh);
+      if(intensity>.12){
+        const x=n(seed+4)*viewW, width=viewW*(.08+n(seed+5)*.55);
+        ctx.globalAlpha=(.12+intensity*.32)*pulse;
+        ctx.fillStyle=n(seed+6)>.5?'#36eaff':'#ff38c8';
+        ctx.fillRect(x,y+bh,width,1+n(seed+7)*3);
+      }
+    }
+    // At 15k the entire backdrop intermittently collapses into black, scan streaks and ghost architecture.
+    if(intensity>.72){
+      const peak=(intensity-.72)/.28;
+      const flick=Math.pow(Math.max(0,Math.sin(elapsed*(8+intensity*8))),8)*peak;
+      if(flick>.12){
+        ctx.globalAlpha=.35+flick*.6;
+        ctx.fillStyle='#010208';ctx.fillRect(0,0,viewW,vh);
+        for(let i=0;i<18;i++){
+          const y=n(i+Math.floor(elapsed*17))*vh;
+          const x=n(i+45+Math.floor(elapsed*11))*viewW;
+          ctx.globalAlpha=.15+flick*.55;
+          ctx.fillStyle=i%3===0?'#ff38c8':(i%3===1?'#4beaff':'#101e2d');
+          ctx.fillRect(x,y,viewW*(.12+n(i+80)*.8),1+n(i+90)*5);
+        }
+        // Ghosted building silhouettes briefly flash behind the foreground.
+        ctx.globalAlpha=.12+flick*.22;
+        for(let i=0;i<9;i++){
+          const bw=18+n(i+110)*70, bh=vh*(.15+n(i+120)*.7);
+          const bx=n(i+130)*viewW;
+          ctx.fillStyle=i%2?'#07131f':'#132637';
+          ctx.fillRect(bx,vh-bh,bw,bh);
+          ctx.fillStyle='#54eaff';ctx.fillRect(bx+3,vh-bh+8,1,bh*.65);
+        }
+      }
+    }
+    ctx.restore();
+  }
+
   // Player and dash echoes.
   for(const t of player.trail){
     ctx.globalAlpha=clamp(t.life/.32,0,1)*.72;
@@ -1743,146 +1808,65 @@ function draw(){
 }
 
 function drawEntityFallback(x,y,w,h,ghost){
-  // Visual-only faceted rogue. Collision bounds and movement physics are untouched.
+  // Original silhouette: a compact cyan anomaly, with no humanoid limbs.
   ctx.save();
   const cx=x+w/2, cy=y+h/2;
   const t=elapsed;
-  const dashing=!ghost&&player.dashVisual>0;
-  const dashAmt=dashing?clamp(player.dashVisual/.27,0,1):0;
-  const climbing=!ghost&&player.climbing;
-  const wallGrab=!ghost&&!player.climbing&&player.wallSide!==0&&!player.onGround&&player.vy>0;
-  const grounded=!ghost&&player.onGround;
-  const vx=ghost?player.dashDir*690:player.vx;
-  const vy=ghost?0:player.vy;
-  const face=player.face||1;
-  const speed=clamp(Math.abs(vx)/245,0,1);
-  const running=grounded&&speed>.08&&!dashing;
-  const runPhase=t*(8+speed*8);
-  const swing=running?Math.sin(runPhase):0;
-  const jumpPhase=!ghost&&!grounded&&!climbing?clamp(1-player.jumpAnim/.24,0,1):0;
-  const jumpActive=!ghost&&player.jumpAnim>0;
-  // Jump cycle: brief compression, arms sweep up, then drive down through ascent.
-  const crouch=jumpActive?(jumpPhase<.23?Math.sin((jumpPhase/.23)*Math.PI/2):0):0;
-  const armUp=jumpActive?(jumpPhase>=.15&&jumpPhase<.62?Math.sin(((jumpPhase-.15)/.47)*Math.PI):0):0;
-  const armDown=jumpActive?(jumpPhase>=.48?Math.sin(clamp((jumpPhase-.48)/.52,0,1)*Math.PI/2):0):0;
-  const airborne=!ghost&&!grounded&&!climbing;
-  const tuck=airborne?clamp(Math.abs(vy)/500,0,1):0;
-  const lean=clamp(vx/700,-.4,.4)*(dashing?1.1:.7)+(running?.09:0);
-  const bodyDrop=crouch*3+(wallGrab?1.5:0);
   const alpha=ghost?.34:1;
+  const face=player.face||1;
+  const dashing=!ghost&&player.dashVisual>0;
   ctx.globalAlpha*=alpha;
-  ctx.translate(cx,cy+bodyDrop+(running?Math.abs(swing)*.7:0));
+  ctx.translate(cx,cy);
   ctx.scale(face,1);
-  ctx.rotate(lean+(climbing?-.12:0)+(wallGrab?-.06:0));
-  if(!ghost){
-    const aura=ctx.createRadialGradient(0,0,2,0,0,25);
-    aura.addColorStop(0,'rgba(29,218,255,.18)');
-    aura.addColorStop(.5,'rgba(120,48,255,.07)');
-    aura.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=aura;ctx.fillRect(-28,-30,56,60);
-  }
-  const cyan=ghost?'rgba(70,240,255,.7)':'#39efff';
-  const pink=ghost?'rgba(255,42,190,.6)':'#ff2fba';
-  const violet=ghost?'rgba(127,73,255,.6)':'#7848ff';
-  const ink='#03050c', dark='#080d18', mid='#111a2a';
-  const poly=(pts,fill,stroke=cyan,sw=.8)=>{
-    ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
-    for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
-    ctx.closePath();ctx.fillStyle=fill;ctx.fill();
-    if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=sw;ctx.lineJoin='miter';ctx.stroke();}
-  };
-  const line=(pts,color,width=1)=>{
-    ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
-    for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
-    ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='miter';ctx.stroke();
-  };
-  // Dash silhouette fragments outward, leaving a narrow central core to read at game scale.
-  if(dashAmt>0){
-    for(let i=0;i<9;i++){
-      const side=i%2?-1:1, yy=-19+i*4.7;
-      const spread=(1-dashAmt)*2+dashAmt*(7+(i%4)*3);
-      const xx=-side*spread;
-      ctx.save();ctx.translate(xx,yy);ctx.rotate(side*(.15+dashAmt*.5));
-      poly([[-3,-1],[1,-2.2],[4,0],[0,2.4]],i%3===0?pink:(i%3===1?cyan:violet),null);
-      ctx.restore();
-    }
-  }
-  // Legs: long, sharply tapered crystalline limbs. Run cycle alternates opposite the arms.
-  const legA=climbing?0:(running?swing:0);
-  const legB=-legA;
-  const kneeA=[-5+legA*4,9+(airborne?tuck*1.5:0)-crouch*2];
-  const kneeB=[5+legB*4,10+(airborne?tuck*1.5:0)-crouch*2];
-  const footA=[kneeA[0]-2+legA*2,17-tuck*3-crouch*2];
-  const footB=[kneeB[0]+3+legB*2,17-tuck*3-crouch*2];
-  if(dashing){
-    poly([[-5,3],[-1,4],[-5,12],[-11,15],[-8,7]],dark,cyan);
-    poly([[1,3],[6,2],[11,8],[14,13],[7,11]],ink,pink);
-  }else{
-    poly([[-6,3],[-1,4],kneeA,[-5,12]],dark,cyan);
-    poly([[kneeA[0]-2,kneeA[1]-1],[kneeA[0]+2,kneeA[1]],footA,[-9,footA[1]+1]],ink,violet);
-    poly([[2,4],[7,3],kneeB,[3,12]],mid,pink);
-    poly([[kneeB[0]-1,kneeB[1]-1],[kneeB[0]+2,kneeB[1]],footB,[footB[0]-4,footB[1]+1]],ink,cyan);
-    poly([[footA[0]-3,footA[1]-1],[footA[0]+3,footA[1]-1],[footA[0]+1,footA[1]+2],[footA[0]-5,footA[1]+3]],'#050711',cyan,.7);
-    poly([[footB[0]-2,footB[1]-1],[footB[0]+3,footB[1]-1],[footB[0]+6,footB[1]+1],[footB[0],footB[1]+3]],'#050711',pink,.7);
-  }
-  // Arms: alternate while running, lift during launch, drive down during ascent, grip walls when sliding.
-  let lElbow=[-10+swing*4,-1-swing*2], lHand=[-13+swing*5,5-swing*3];
-  let rElbow=[10-swing*4,-2+swing*2], rHand=[13-swing*5,4+swing*3];
-  if(jumpActive){
-    lElbow=[-10-armUp*2,-4-armUp*9+armDown*5];
-    lHand=[-14-armUp*2,-2-armUp*13+armDown*10];
-    rElbow=[9+armUp*2,-4-armUp*9+armDown*5];
-    rHand=[14+armUp*2,-2-armUp*13+armDown*10];
-  }
-  if(climbing||wallGrab){
-    const reach=climbing?1:0;
-    lElbow=[-9,-7-reach*5];lHand=[-13,-12-reach*7];
-    rElbow=[8,-1];rHand=[12,5];
-  }
-  if(dashing){lElbow=[-10,-8];lHand=[-17,-5];rElbow=[-1,-4];rHand=[7,0];}
-  poly([[-7,-8],lElbow,[lElbow[0]-3,lElbow[1]+4],[-5,-3]],dark,cyan,.9);
-  poly([[lElbow[0]-2,lElbow[1]+2],lHand,[lHand[0]-3,lHand[1]+2],[lElbow[0]+1,lElbow[1]+5]],ink,violet,.8);
-  poly([[7,-8],rElbow,[rElbow[0]+3,rElbow[1]+4],[5,-3]],mid,pink,.9);
-  poly([[rElbow[0]+1,rElbow[1]+2],rHand,[rHand[0]+3,rHand[1]+1],[rElbow[0]+3,rElbow[1]+5]],ink,cyan,.8);
-  // Low, broad, forward-leaning torso: layered obsidian plates and jagged shoulder silhouette.
-  ctx.shadowColor=ghost?'transparent':cyan;ctx.shadowBlur=ghost?0:4;
-  poly([[-9,-12],[-5,-17],[1,-15],[8,-11],[10,-5],[6,4],[1,8],[-7,5],[-11,-2]],ink,cyan,1.1);
-  ctx.shadowBlur=0;
-  poly([[-6,-12],[-2,-15],[4,-11],[6,-6],[2,2],[-5,3],[-8,-3]],dark,'rgba(130,86,255,.9)',.7);
-  poly([[-8,-10],[-3,-13],[1,-10],[-3,-7]],mid,pink,.6);
-  line([[-5,-7],[0,-4],[4,-8]],cyan,1.25);
-  poly([[-1,-3],[3,-5],[2,0],[-2,1]],'#d5fbff',null);
-  line([[5,1],[1,4],[-4,3]],pink,.9);
-  // Faceless, swept-back angular head; no eyes or human facial features.
-  const headY=-18+(dashing?2:0)-crouch*1.5;
-  poly([[-6,-5],[-2,-9],[3,-8],[7,-4],[4,1],[-1,4],[-6,1],[-8,-2]],'#03050b',cyan,1.05);
-  poly([[-4,-4],[1,-7],[4,-3],[1,1],[-4,0]],'#101629','rgba(130,78,255,.9)',.65);
-  line([[-4,-2],[0,-3],[3,-2]],pink,1.1);
-  // Persistent but sparse drifting shards. Their calculations are bounded and purely decorative.
-  const seed=Math.floor(t*12);
-  for(let i=0;i<6;i++){
-    const ph=t*(1.5+i*.17)+i*2.1+seed*.013;
-    if(!ghost&&Math.sin(ph*2.7)<=.52&&dashAmt===0)continue;
-    const side=i%2===0?1:-1;
-    const bx=[-9,9,-7,8,-4,6][i], by=[-15,-10,2,7,-22,12][i];
-    const spread=dashAmt*(4+i*1.4);
-    const fx=bx+side*(2+Math.sin(ph)*2+spread);
-    const fy=by+Math.cos(ph*1.4)*2;
-    const sz=[2.4,2,1.8,2.8,1.6,2.2][i];
-    ctx.save();ctx.translate(fx,fy);ctx.rotate(Math.sin(ph)*.7);
-    poly([[-sz,-sz*.5],[sz*.8,-sz],[sz,sz*.5],[-sz*.4,sz]],i%3===0?pink:(i%3===1?cyan:violet),null);
+  const jitter=(n)=>Math.sin(t*31+n*17+(ghost?2:0));
+  const cyan=ghost?'rgba(86,245,255,.78)':'#45f4ff';
+  const pale=ghost?'rgba(219,255,255,.7)':'#c7ffff';
+  const pink=ghost?'rgba(255,58,205,.55)':'#ff42c8';
+  // Offset color channels create the glitch, while the core stays readable.
+  for(let i=0;i<3;i++){
+    ctx.save();
+    ctx.translate((i-1)*(dashing?4:2)+jitter(i)*.8, jitter(i+3)*.6);
+    ctx.globalAlpha*=i===1?1:.45;
+    ctx.beginPath();
+    ctx.moveTo(-w*.48,-h*.22);
+    ctx.lineTo(-w*.12,-h*.5);
+    ctx.lineTo(w*.38,-h*.38);
+    ctx.lineTo(w*.5,-h*.02);
+    ctx.lineTo(w*.22,h*.35);
+    ctx.lineTo(-w*.24,h*.44);
+    ctx.lineTo(-w*.5,h*.12);
+    ctx.closePath();
+    ctx.fillStyle=i===0?pink:(i===1?'rgba(3,18,29,.96)':cyan);
+    ctx.fill();
+    if(i===1){ctx.strokeStyle=cyan;ctx.lineWidth=1.2;ctx.stroke();}
     ctx.restore();
   }
-  if(dashAmt>0||ghost){
-    for(let i=0;i<5;i++){
-      const yy=-13+i*6+Math.sin(t*31+i)*1.2;
-      const len=4+dashAmt*(8+(i%3)*3);
-      poly([[-7-len,yy],[-7,yy-1],[-6,yy+.7],[-7-len*.82,yy+1.8]],i%2?pink:cyan,null);
-    }
+  // Faceted luminous core; irregular cuts make it feel unstable rather than humanoid.
+  ctx.beginPath();
+  ctx.moveTo(-w*.28,-h*.18);
+  ctx.lineTo(-w*.06,-h*.38);
+  ctx.lineTo(w*.27,-h*.24);
+  ctx.lineTo(w*.34,h*.01);
+  ctx.lineTo(w*.08,h*.3);
+  ctx.lineTo(-w*.22,h*.2);
+  ctx.closePath();
+  ctx.fillStyle='rgba(49,235,255,.28)';ctx.fill();
+  ctx.strokeStyle=pale;ctx.lineWidth=.8;ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-w*.08,-h*.31);ctx.lineTo(w*.02,-h*.02);
+  ctx.lineTo(w*.29,h*.01);ctx.moveTo(w*.02,-h*.02);
+  ctx.lineTo(-w*.18,h*.18);
+  ctx.strokeStyle='rgba(210,255,255,.72)';ctx.lineWidth=.7;ctx.stroke();
+  // Tiny detached pixels drift from the entity; no arms or legs.
+  for(let i=0;i<5;i++){
+    const px=(jitter(i+9)*.5)*w+(i%2?-1:1)*w*.25;
+    const py=Math.sin(t*5+i*2.1)*h*.42;
+    ctx.globalAlpha=alpha*(.25+.35*(.5+.5*Math.sin(t*8+i)));
+    ctx.fillStyle=i%2?pink:cyan;
+    ctx.fillRect(px,py,1.5+(i%2),2);
   }
   ctx.restore();
 }
-
 function drawEntity(x,y,w,h,ghost){
   // The character is a living geometric glitch rather than a static imported sprite.
   // Keep its visual size close to the original gameplay scale.
