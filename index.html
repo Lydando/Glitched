@@ -1764,49 +1764,86 @@ function drawEntity(x,y,w,h,ghost){
     drawEntityFallback(x,y,w,h,ghost);
     return;
   }
+
   ctx.save();
   const alpha = ghost ? .30 : 1;
   ctx.globalAlpha *= alpha;
 
-  // Keep the collision box unchanged; the larger sprite supplies the visual silhouette.
-  const targetH = h * 1.48;
-  const targetW = targetH * avatarCrop.w / avatarCrop.h;
+  // The artwork is narrow within its canvas, so enlarge it and widen the silhouette
+  // without changing the physics/collision box.
+  const targetH = h * 1.92;
+  const targetW = targetH * avatarCrop.w / avatarCrop.h * 1.22;
   const drawX = x + w / 2 - targetW / 2;
-  const drawY = y + h - targetH + 3;
+  const drawY = y + h - targetH + 2;
 
-  // Gentle bob for idle, limb motion remains a later sprite-animation step.
   const grounded = !ghost && player.onGround;
   const running = grounded && Math.abs(player.vx) > 35;
-  const bob = running ? Math.abs(Math.sin(elapsed * 13)) * 1.4 : Math.sin(elapsed * 2.4) * .6;
+  const climbing = !ghost && player.climbing;
+  const airborne = !ghost && !player.onGround && !player.climbing;
   const dashAmt = !ghost ? clamp(player.dashVisual / .27, 0, 1) : 0;
 
-  if (dashAmt > 0) {
+  // Lightweight procedural animation using the single available pose:
+  // bounce while running, a pull-up bob while climbing, and a slight lean in motion.
+  const runPhase = elapsed * 12.5;
+  const climbPhase = elapsed * 8.5;
+  const bob = running
+    ? Math.abs(Math.sin(runPhase)) * 2.3
+    : climbing
+      ? Math.sin(climbPhase) * 2.1
+      : airborne
+        ? Math.sin(elapsed * 7) * .8
+        : Math.sin(elapsed * 2.4) * .55;
+  const squashY = running ? 1 - Math.abs(Math.sin(runPhase)) * .035 : 1;
+  const stretchX = running ? 1 + Math.abs(Math.sin(runPhase)) * .025 : 1;
+  const lean = dashAmt > 0 ? player.dashDir * .12 * dashAmt
+    : running ? clamp(player.vx / 950, -.055, .055)
+    : climbing ? Math.sin(climbPhase) * .025
+    : airborne ? clamp(player.vx / 1200, -.04, .04) : 0;
+
+  function drawPose(px, py, wDraw, hDraw, opacity, rotation=0) {
     ctx.save();
-    ctx.globalAlpha *= .32;
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(avatarSprite, avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
-      drawX - player.dashDir * (7 + dashAmt * 9), drawY + bob, targetW, targetH);
+    ctx.globalAlpha *= opacity;
+    const cx = px + wDraw / 2;
+    const cy = py + hDraw / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    ctx.scale(stretchX, squashY);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      avatarSprite,
+      avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
+      -wDraw / 2, -hDraw / 2, wDraw, hDraw
+    );
     ctx.restore();
-    ctx.globalAlpha *= alpha;
   }
 
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(avatarSprite, avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
-    drawX, drawY + bob, targetW, targetH);
-  ctx.imageSmoothingEnabled = true;
+  // Dash afterimages make the existing static pose feel faster until true frames exist.
+  if (dashAmt > 0 && !ghost) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    drawPose(drawX - player.dashDir * (8 + dashAmt * 12), drawY + bob,
+      targetW, targetH, .26 * dashAmt, lean * .65);
+    ctx.restore();
+  }
+
+  drawPose(drawX, drawY + bob, targetW, targetH, 1, lean);
 
   if (dashAmt > 0 && !ghost) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = .75 * dashAmt;
+    ctx.globalAlpha *= .8 * dashAmt;
     const trailX = player.face > 0 ? drawX - 10 : drawX + targetW + 2;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       ctx.fillStyle = i % 2 ? '#ff36c8' : '#48f4ff';
-      ctx.fillRect(trailX - (player.face > 0 ? i * 3 : -i * 3),
-        drawY + targetH * (.3 + i * .12), 5 + (i % 2) * 4, 1.5);
+      ctx.fillRect(
+        trailX - (player.face > 0 ? i * 4 : -i * 4),
+        drawY + targetH * (.27 + i * .115) + bob,
+        5 + (i % 2) * 5, 1.5 + (i % 2)
+      );
     }
     ctx.restore();
   }
+
   ctx.restore();
 }
 
