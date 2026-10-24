@@ -29,6 +29,41 @@ canvas{display:block;width:100%;height:100%;outline:0;touch-action:none}
 const canvas=document.getElementById('game');
 const ctx=canvas.getContext('2d');
 
+// Character sprite: trim transparent margins once loaded, while preserving the source PNG.
+const avatarSprite = new Image();
+let avatarReady = false;
+let avatarCrop = null;
+avatarSprite.onload = () => {
+  const source = document.createElement('canvas');
+  source.width = avatarSprite.naturalWidth;
+  source.height = avatarSprite.naturalHeight;
+  const sourceCtx = source.getContext('2d', { willReadFrequently: true });
+  sourceCtx.drawImage(avatarSprite, 0, 0);
+  const pixels = sourceCtx.getImageData(0, 0, source.width, source.height).data;
+  let minX = source.width, minY = source.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < source.height; y++) {
+    for (let x = 0; x < source.width; x++) {
+      if (pixels[(y * source.width + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX >= minX && maxY >= minY) {
+    const pad = 3;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(source.width - 1, maxX + pad);
+    maxY = Math.min(source.height - 1, maxY + pad);
+    avatarCrop = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    avatarReady = true;
+  }
+};
+avatarSprite.onerror = () => { avatarReady = false; };
+avatarSprite.src = './Pixelated%20avatar.png';
+
 let W=innerWidth,H=innerHeight,DPR=1;
 
 function resize(){
@@ -1583,7 +1618,7 @@ function draw(){
   ctx.restore();
 }
 
-function drawEntity(x,y,w,h,ghost){
+function drawEntityFallback(x,y,w,h,ghost){
   // Visual-only faceted rogue. Collision bounds and movement physics are untouched.
   ctx.save();
   const cx=x+w/2, cy=y+h/2;
@@ -1720,6 +1755,57 @@ function drawEntity(x,y,w,h,ghost){
       const len=4+dashAmt*(8+(i%3)*3);
       poly([[-7-len,yy],[-7,yy-1],[-6,yy+.7],[-7-len*.82,yy+1.8]],i%2?pink:cyan,null);
     }
+  }
+  ctx.restore();
+}
+
+function drawEntity(x,y,w,h,ghost){
+  if (!avatarReady || !avatarCrop) {
+    drawEntityFallback(x,y,w,h,ghost);
+    return;
+  }
+  ctx.save();
+  const alpha = ghost ? .30 : 1;
+  ctx.globalAlpha *= alpha;
+
+  // Keep the collision box unchanged; the larger sprite supplies the visual silhouette.
+  const targetH = h * 1.48;
+  const targetW = targetH * avatarCrop.w / avatarCrop.h;
+  const drawX = x + w / 2 - targetW / 2;
+  const drawY = y + h - targetH + 3;
+
+  // Gentle bob for idle, limb motion remains a later sprite-animation step.
+  const grounded = !ghost && player.onGround;
+  const running = grounded && Math.abs(player.vx) > 35;
+  const bob = running ? Math.abs(Math.sin(elapsed * 13)) * 1.4 : Math.sin(elapsed * 2.4) * .6;
+  const dashAmt = !ghost ? clamp(player.dashVisual / .27, 0, 1) : 0;
+
+  if (dashAmt > 0) {
+    ctx.save();
+    ctx.globalAlpha *= .32;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(avatarSprite, avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
+      drawX - player.dashDir * (7 + dashAmt * 9), drawY + bob, targetW, targetH);
+    ctx.restore();
+    ctx.globalAlpha *= alpha;
+  }
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(avatarSprite, avatarCrop.x, avatarCrop.y, avatarCrop.w, avatarCrop.h,
+    drawX, drawY + bob, targetW, targetH);
+  ctx.imageSmoothingEnabled = true;
+
+  if (dashAmt > 0 && !ghost) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = .75 * dashAmt;
+    const trailX = player.face > 0 ? drawX - 10 : drawX + targetW + 2;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 ? '#ff36c8' : '#48f4ff';
+      ctx.fillRect(trailX - (player.face > 0 ? i * 3 : -i * 3),
+        drawY + targetH * (.3 + i * .12), 5 + (i % 2) * 4, 1.5);
+    }
+    ctx.restore();
   }
   ctx.restore();
 }
