@@ -1,4 +1,4 @@
-const CACHE_NAME = "glitched-v3";
+const CACHE_NAME = "glitched-v4";
 const APP_BASE = "/Glitched/";
 
 const APP_FILES = [
@@ -37,17 +37,28 @@ self.addEventListener("fetch", event => {
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith(APP_BASE)) return;
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
+  const isPage = event.request.mode === "navigate" ||
+    url.pathname === APP_BASE + "index.html" || url.pathname === APP_BASE;
 
-      return fetch(event.request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      });
-    })
+  event.respondWith(
+    (isPage
+      ? fetch(event.request).then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        }).catch(() => caches.match(event.request))
+      : caches.match(event.request).then(cached => {
+          if (cached) return cached;
+          return fetch(event.request).then(response => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            }
+            return response;
+          });
+        })
+    )
   );
 });
