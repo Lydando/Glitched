@@ -1241,55 +1241,63 @@ function draw(){
     ctx.fillRect(0,0,viewW,vh);
   }
 
-  // 3D glitch lightning: jagged longitudinal edges and cross-struts recede toward a vanishing point.
-  if(runHeight>=6000){
+  // Reality-loss field replaces the old giant lightning graphic with atmospheric,
+  // architecture-adjacent fractures and missing-world fragments. Kept behind platforms.
+  {
     const n=v=>{const q=Math.sin(v*127.1+311.7)*43758.5453;return q-Math.floor(q);};
-    const period=3.7;
-    const event=Math.floor(elapsed/period);
-    const age=elapsed%period;
-    const seed=event*41.7+4.2;
-    const begin=.12+n(seed)*.38;
-    const duration=2.25+n(seed+1)*.55;
-    const local=age-begin;
-    if(local>=0&&local<duration){
-      const p=local/duration;
-      const fade=Math.min(clamp(p/.13,0,1),clamp((1-p)/.22,0,1));
-      const palette=[['235,252,255','111,229,255'],['255,147,222','255,65,188'],['109,238,255','47,153,255']];
-      const colors=palette[Math.floor(n(seed+2)*palette.length)];
-      const ox=viewW*(.18+n(seed+3)*.64), oy=vh*(.2+n(seed+4)*.58);
-      const angle=(n(seed+5)-.5)*.75, length=vh*(.38+n(seed+6)*.38);
-      const width=viewW*(.08+n(seed+7)*.12);
-      ctx.save();ctx.translate(ox,oy);ctx.rotate(angle);
-      ctx.globalAlpha=fade*(.6+lateRun*.25);
-      // Depth rails: start wide and converge, giving a long 3D corridor/lightning bolt.
-      const rails=[];
-      for(let side=-1;side<=1;side+=2){
-        const pts=[];let x=side*width,y=length*.42;
-        pts.push([x,y]);
-        for(let k=1;k<=7;k++){
-          const q=k/7;
-          x=side*width*(1-q*.88)+(n(seed+side*11+k)-.5)*width*.22;
-          y=length*.42-q*length;
-          pts.push([x,y]);
-        }
-        rails.push(pts);
-      }
-      // Broad soft glow behind the crisp, angular lightning structure.
-      ctx.lineCap='round';ctx.lineJoin='round';
-      for(let r=0;r<2;r++){
-        ctx.beginPath();ctx.moveTo(rails[r][0][0],rails[r][0][1]);
-        rails[r].slice(1).forEach(pt=>ctx.lineTo(pt[0],pt[1]));
-        ctx.strokeStyle=`rgba(${colors[1]},${r===0?.18:.12})`;
-        ctx.lineWidth=r===0?10:6;ctx.stroke();
-      }
-      // Cross-struts and side forks removed; keep the depth rails and central spine.\n      // Sharp bright spine running through the depth.
-      ctx.beginPath();ctx.moveTo(0,length*.43);
-      for(let k=1;k<=12;k++){
-        const q=k/12;
-        ctx.lineTo((n(seed+60+k)-.5)*width*(1-q)*.8,-q*length);
-      }
-      ctx.strokeStyle=`rgba(${colors[0]},${.9*fade})`;ctx.lineWidth=1.5;ctx.stroke();
+    const intensity=clamp(.22+runHeight/9000,.22,.82);
+    const event=Math.floor(elapsed/9.5), phase=(elapsed%9.5)/9.5, eventSeed=event*37.19+8.4;
+    // Broad, soft distortion blooms; no single hard-edged streak dominates the scene.
+    for(let i=0;i<4;i++){
+      const seed=eventSeed+i*17.7,x=viewW*(.12+n(seed)*.76),y=vh*(.12+n(seed+1)*.72);
+      const rx=viewW*(.08+n(seed+2)*.12),ry=vh*(.10+n(seed+3)*.16);
+      const pulse=.55+.45*Math.sin(elapsed*.55+seed);
+      ctx.save();ctx.translate(x+Math.sin(elapsed*.32+seed)*7,y);ctx.scale(1,ry/Math.max(1,rx));
+      const haze=ctx.createRadialGradient(0,0,2,0,0,rx);
+      haze.addColorStop(0,`rgba(17,77,112,${(.025+intensity*.035)*pulse})`);
+      haze.addColorStop(.55,`rgba(27,119,151,${(.018+intensity*.02)*pulse})`);
+      haze.addColorStop(1,'rgba(7,16,34,0)');ctx.fillStyle=haze;
+      ctx.beginPath();ctx.arc(0,0,rx,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+    // Fine interrupted fractures, loosely echoing facade seams rather than cutting across the screen.
+    for(let i=0;i<13;i++){
+      const seed=6200+i*23.7+Math.floor(runHeight/240)*5.1;
+      const x=viewW*(.07+n(seed)*.86),y=vh*(.04+n(seed+1)*.90),len=18+n(seed+2)*(52+voidness*28);
+      const bend=(n(seed+3)-.5)*22,drift=Math.sin(elapsed*.18+seed)*2.4;
+      const alpha=(.035+intensity*.055)*(.65+.35*Math.sin(elapsed*.7+seed));
+      const segments=3+Math.floor(n(seed+4)*3),pts=[];
+      for(let k=0;k<=segments;k++){const q=k/segments;pts.push([x+drift+bend*Math.sin(q*Math.PI)+(n(seed+k+9)-.5)*5,y+q*len]);}
+      ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0],pts[k][1]);
+      ctx.strokeStyle=`rgba(35,174,204,${alpha*.65})`;ctx.lineWidth=4.5;ctx.stroke();
+      ctx.strokeStyle=`rgba(89,222,238,${alpha})`;ctx.lineWidth=.8;
+      for(let k=0;k<segments;k++){if(n(seed+70+k)<.26)continue;ctx.beginPath();ctx.moveTo(pts[k][0],pts[k][1]);ctx.lineTo(pts[k+1][0],pts[k+1][1]);ctx.stroke();}
       ctx.restore();
+      // Tiny void cuts adjacent to the fracture suggest pieces of the facade have vanished.
+      if(i%3===0){const vw=5+n(seed+5)*(8+voidness*15),vhole=7+n(seed+6)*(10+voidness*22);
+        const vx=x+(n(seed+7)>.5?1:-1)*(7+n(seed+8)*13),vy=y+len*(.28+n(seed+9)*.48);
+        ctx.fillStyle=`rgba(2,7,18,${.18+voidness*.20})`;ctx.fillRect(vx,vy,vw,vhole);
+        ctx.fillStyle=`rgba(52,190,213,${.025+alpha*.55})`;ctx.fillRect(vx+vw*.18,vy+vhole*.18,Math.max(1,vw*.6),1);}
+    }
+    // Brief local pulses ripple through fractures; no full-screen bolt or harsh flash.
+    if(phase>.22&&phase<.39){const pulse=Math.sin(Math.PI*(phase-.22)/.17);
+      for(let i=0;i<3;i++){const seed=eventSeed+i*31.3,x=viewW*(.16+n(seed)*.68),y=vh*(.18+n(seed+1)*.64),radius=18+n(seed+2)*48;
+        const bloom=ctx.createRadialGradient(x,y,1,x,y,radius);
+        bloom.addColorStop(0,`rgba(91,232,249,${.035*pulse})`);bloom.addColorStop(.55,`rgba(32,147,188,${.018*pulse})`);bloom.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=bloom;ctx.fillRect(x-radius,y-radius,radius*2,radius*2);}
+    }
+    // Broad, soft atmospheric shafts drift through the city haze.
+    for(let i=0;i<6;i++){const seed=8700+i*13.3,x=viewW*(.08+n(seed)*.84),top=-vh*.12,bottom=vh*1.08;
+      const width=18+n(seed+1)*66,lean=(n(seed+2)-.5)*viewW*.12+Math.sin(elapsed*.12+seed)*8,alpha=(.012+n(seed+3)*.018)*(1-voidness*.28);
+      const beam=ctx.createLinearGradient(x,top,x+lean,bottom);beam.addColorStop(0,'rgba(68,204,234,0)');
+      beam.addColorStop(.32,`rgba(73,198,229,${alpha})`);beam.addColorStop(.68,`rgba(49,151,201,${alpha*.7})`);beam.addColorStop(1,'rgba(40,126,177,0)');
+      ctx.save();ctx.beginPath();ctx.moveTo(x-width*.15,top);ctx.lineTo(x+width*.6,top);ctx.lineTo(x+lean+width,bottom);ctx.lineTo(x+lean-width*.6,bottom);ctx.closePath();ctx.fillStyle=beam;ctx.fill();ctx.restore();
+    }
+    // Three soft fog banks add depth without washing out the playable route.
+    for(let i=0;i<3;i++){const seed=9900+i*19.1,y=vh*(.22+i*.28)+Math.sin(elapsed*.16+seed)*8;
+      const x=viewW*(.2+n(seed)*.6),radius=viewW*(.28+n(seed+1)*.16),fog=ctx.createRadialGradient(x,y,1,x,y,radius);
+      fog.addColorStop(0,`rgba(18,91,126,${.018+intensity*.012})`);fog.addColorStop(.58,`rgba(8,36,65,${.018+intensity*.01})`);fog.addColorStop(1,'rgba(2,7,17,0)');
+      ctx.fillStyle=fog;ctx.fillRect(0,0,viewW,vh);
     }
   }
   // World objects: detailed industrial ledges and climbable power conduits.
