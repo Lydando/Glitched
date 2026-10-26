@@ -862,6 +862,22 @@ function draw(){
   pinkGlow.addColorStop(.42,`rgba(166,38,126,${.035+fracture*.035+voidness*.035})`);
   pinkGlow.addColorStop(1,'rgba(18,5,25,0)');
   ctx.fillStyle=pinkGlow;ctx.fillRect(0,0,viewW,vh);
+  // Organic corruption roots creep along the shaft edges behind the platforms.
+  ctx.save();
+  for(let side=0;side<2;side++){
+    const edgeX=side===0?12:viewW-12;
+    for(let root=0;root<7;root++){
+      const seed=9300+side*400+root*31;
+      const y0=((noise(seed)*vh+elapsed*(8+noise(seed+1)*13))%vh);
+      const reach=16+noise(seed+2)*70+fracture*18, sway=Math.sin(elapsed*.7+seed)*7;
+      ctx.beginPath();ctx.moveTo(edgeX,y0-34);
+      ctx.bezierCurveTo(edgeX+(side?-reach*.15:reach*.15)+sway,y0-15,edgeX+(side?-reach*.7:reach*.7)-sway,y0+4,edgeX+(side?-reach:reach),y0+25+noise(seed+3)*20);
+      ctx.strokeStyle=root%3===0?'rgba(255,44,158,'+(.16+fracture*.16)+')':'rgba(29,157,181,'+(.12+decay*.08)+')';
+      ctx.lineWidth=1+noise(seed+4)*3;ctx.shadowColor=root%3===0?'#ff2f9d':'#29cfe9';ctx.shadowBlur=2+fracture*3;ctx.stroke();ctx.shadowBlur=0;
+      if(root%2===0){ctx.fillStyle='rgba(255,48,159,'+(.10+fracture*.14)+')';ctx.beginPath();ctx.ellipse(edgeX+(side?-reach*.65:reach*.65),y0+12,3+fracture*2,7,side?-.4:.4,0,Math.PI*2);ctx.fill();}
+    }
+  }
+  ctx.restore();
   // A few irregular vertical shafts make the haze feel like light between towers.
   for(let i=0;i<5;i++){
     const sx=noise(8100+i)*viewW;
@@ -1933,59 +1949,45 @@ function drawEntityFallback(x,y,w,h,ghost){
   ctx.restore();
 }
 function drawEntity(x,y,w,h,ghost){
+  // Procedural character art: no sprites, sprite sheets, or external images.
+  // A masked wanderer with a split mantle, articulated limbs, and state-aware poses.
   ctx.save();
-
-  ctx.translate(x+w/2,y+h/2);
-  ctx.globalAlpha=ghost?.45:1;
-
-  let glow=ctx.createRadialGradient(0,0,1,0,0,29);
-  glow.addColorStop(0,'rgba(72,245,255,.26)');
-  glow.addColorStop(1,'rgba(72,245,255,0)');
-
-  ctx.fillStyle=glow;
-  ctx.fillRect(-31,-31,62,62);
-
-  ctx.rotate(Math.sin(elapsed*7)*.045);
-
-  ctx.fillStyle='#122b41';
-  ctx.strokeStyle='#79f7ff';
-  ctx.lineWidth=1.4;
-  ctx.shadowColor='#39efff';
-  ctx.shadowBlur=ghost?2:12;
-
-  ctx.beginPath();
-  ctx.moveTo(-9,-17);
-  ctx.lineTo(6,-19);
-  ctx.lineTo(13,-7);
-  ctx.lineTo(10,9);
-  ctx.lineTo(1,18);
-  ctx.lineTo(-12,10);
-  ctx.lineTo(-14,-5);
-  ctx.closePath();
-
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.shadowBlur=0;
-  ctx.fillStyle='#d6ffff';
-
-  ctx.beginPath();
-  ctx.moveTo(-4,-9);
-  ctx.lineTo(7,-12);
-  ctx.lineTo(4,-2);
-  ctx.lineTo(-5,3);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle='#ff72d4';
-  ctx.fillRect(-10,7,4,3);
-  ctx.fillRect(7,10,3,4);
-
-  ctx.fillStyle='#72f8ff';
-  ctx.fillRect(-17,-3,3,5);
-  ctx.fillRect(12,-14,4,4);
-
-  ctx.restore();
+  const t=elapsed, grounded=!ghost&&player.onGround, climbing=!ghost&&player.climbing;
+  const dashing=!ghost&&player.dashVisual>0, rising=!ghost&&player.vy<-35, falling=!ghost&&player.vy>75;
+  const running=grounded&&Math.abs(player.vx)>18, face=player.face||1;
+  const phase=t*(running?13:5), bob=grounded?(running?Math.abs(Math.sin(phase))*1.6:Math.sin(t*3)*.5):0;
+  const alpha=ghost?.3:1, stride=running?Math.sin(phase)*5:climbing?Math.sin(t*8)*3:0;
+  ctx.translate(x+w/2,y+h/2+bob);ctx.scale(face*(dashing?1.12:1),1);ctx.globalAlpha*=alpha;
+  const halo=ctx.createRadialGradient(0,0,1,0,0,27);
+  halo.addColorStop(0,ghost?'rgba(71,238,255,.08)':'rgba(48,226,255,.22)');halo.addColorStop(1,'rgba(44,190,255,0)');
+  ctx.fillStyle=halo;ctx.beginPath();ctx.ellipse(0,1,25,23,0,0,Math.PI*2);ctx.fill();
+  if(dashing&&!ghost){ctx.save();ctx.globalCompositeOperation='lighter';for(let i=3;i>0;i--){ctx.globalAlpha=.1*i;ctx.fillStyle=i%2?'#ff3cbd':'#43efff';ctx.beginPath();ctx.moveTo(-4-i*4,-12+i);ctx.lineTo(-13-i*6,-6+i);ctx.lineTo(-18-i*6,5+i);ctx.lineTo(-5-i*3,10+i);ctx.closePath();ctx.fill();}ctx.restore();ctx.globalAlpha=alpha;}
+  // Split mantle flares behind the body and reacts to movement.
+  ctx.save();ctx.shadowColor='#ff2eaa';ctx.shadowBlur=ghost?1:7;ctx.fillStyle='#101b30';ctx.strokeStyle='#e33aa9';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(-4,-11);ctx.quadraticCurveTo(-13,-7,-12,1);ctx.lineTo(-17,11+(running?Math.sin(phase)*2:falling?4:0));ctx.lineTo(-8,8);ctx.lineTo(-3,14+(dashing?-3:0));ctx.lineTo(2,8);ctx.lineTo(7,11+(running?Math.cos(phase)*2:0));ctx.lineTo(8,-7);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.shadowBlur=0;ctx.strokeStyle='rgba(75,245,255,.72)';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(-8,-4);ctx.quadraticCurveTo(-9,3,-14,9);ctx.stroke();ctx.restore();
+  function limb(points,color,width,glow){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.shadowColor=glow||color;ctx.shadowBlur=ghost?1:4;ctx.stroke();ctx.shadowBlur=0;}
+  const tuck=rising?-2:falling?3:0, legA=climbing?Math.sin(t*8)*4:stride, legB=climbing?-Math.sin(t*8)*4:-stride;
+  limb([[-4,5],[-5+legA*.55,10+tuck],[-7+legA,15+tuck]],'#172d43',4,'#36e9ff');
+  limb([[3,5],[4+legB*.55,10+tuck],[5+legB,15+tuck]],'#26354b',4,'#ff38b9');
+  limb([[-8+legA,15+tuck],[-3+legA,15+tuck]],'#9afaff',2);limb([[4+legB,15+tuck],[9+legB,14+tuck]],'#f07bd7',2);
+  // Layered torso armor, with a bright fractured signal running through it.
+  ctx.save();ctx.rotate(dashing?-.14:rising?-.12:falling?.13:Math.sin(t*4)*.025);ctx.shadowColor='#45edff';ctx.shadowBlur=ghost?1:7;
+  ctx.fillStyle='#14273b';ctx.strokeStyle='#63f6ff';ctx.lineWidth=1.25;ctx.beginPath();ctx.moveTo(-6,-11);ctx.lineTo(3,-12);ctx.lineTo(7,-5);ctx.lineTo(5,5);ctx.lineTo(-4,7);ctx.lineTo(-8,0);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.shadowBlur=0;ctx.fillStyle='#263c52';ctx.beginPath();ctx.moveTo(-4,-9);ctx.lineTo(2,-10);ctx.lineTo(4,-3);ctx.lineTo(-2,0);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#ff4ec4';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(2,-5);ctx.lineTo(4,1);ctx.lineTo(1,4);ctx.stroke();ctx.fillStyle='#b9fbff';ctx.fillRect(-2,-5,2,2);ctx.restore();
+  const armA=running?Math.sin(phase+Math.PI)*4:climbing?Math.sin(t*8+Math.PI)*4:rising?-4:0, armB=running?Math.sin(phase)*4:climbing?-Math.sin(t*8+Math.PI)*4:falling?3:0;
+  limb([[-5,-8],[-9+armA*.35,-3],[-8+armA,1+(dashing?-3:0)]],'#1d344a',3.5,'#47edff');limb([[4,-8],[8+armB*.35,-4],[7+armB,dashing?-4:0]],'#263047',3.5,'#ff43bd');
+  ctx.fillStyle='#bafcff';ctx.beginPath();ctx.arc(-8+armA,dashing?-3:1,1.8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff83dc';ctx.beginPath();ctx.arc(7+armB,dashing?-4:0,1.8,0,Math.PI*2);ctx.fill();
+  // Angular hood and split porcelain mask make the head readable at small sizes.
+  const hy=-15+(rising?-1:falling?1:0)+(climbing?Math.sin(t*8)*.7:0);ctx.save();ctx.shadowColor='#4ef5ff';ctx.shadowBlur=ghost?1:9;ctx.fillStyle='#0a1424';ctx.strokeStyle='#85fbff';ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(-7,hy+1);ctx.lineTo(-5,hy-6);ctx.lineTo(0,hy-10);ctx.lineTo(6,hy-6);ctx.lineTo(8,hy+1);ctx.lineTo(4,hy+5);ctx.lineTo(-4,hy+5);ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  const mask=ctx.createLinearGradient(-4,hy-4,5,hy+4);mask.addColorStop(0,'#d5ffff');mask.addColorStop(.48,'#6ba7b9');mask.addColorStop(1,'#26374e');ctx.fillStyle=mask;
+  ctx.beginPath();ctx.moveTo(-4,hy-3);ctx.lineTo(3,hy-4);ctx.lineTo(5,hy);ctx.lineTo(1,hy+3);ctx.lineTo(-4,hy+1);ctx.closePath();ctx.fill();
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.fillStyle='#ff4ac7';ctx.shadowColor='#ff3dbf';ctx.shadowBlur=5;ctx.fillRect(1,hy-1,3,1.5);ctx.fillStyle='#e6ffff';ctx.shadowColor='#8ffaff';ctx.fillRect(-3,hy-1,2,1.5);ctx.restore();
+  ctx.strokeStyle='#ff54c9';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(-2,hy-8);ctx.lineTo(-4,hy-12);ctx.lineTo(-1,hy-10);ctx.stroke();ctx.restore();
+  // Signal fragments and tiny shards intensify the dash without replacing the silhouette.
+  ctx.save();ctx.globalCompositeOperation='lighter';for(let i=0;i<4;i++){ctx.globalAlpha=alpha*(.3+.4*(.5+.5*Math.sin(t*8+i*2)));ctx.fillStyle=i%2?'#ff42bd':'#8dfaff';ctx.fillRect(-10-Math.abs(Math.sin(t*5+i))*4,-5+i*5+Math.sin(t*7+i)*2,1.5+(i%2),1.5+(i%3));}ctx.restore();ctx.restore();
 }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
