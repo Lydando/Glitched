@@ -210,7 +210,7 @@ let player;
 
 function makePlayer(){
   return {
-    x:world.width/2,y:0,vx:0,vy:0,w:25,h:36,
+    x:world.width/2,y:0,vx:0,vy:0,w:28,h:40,
     onGround:false,wallSide:0,wallJumpLock:0,
     dashReady:true,dashTime:0,dashDir:1,
     climbing:false,wire:null,climbCooldown:0,
@@ -1961,7 +1961,7 @@ function drawEntity(x,y,w,h,ghost){
   const alpha=ghost?.22:1, tuck=rising?2.8:falling?-1.2:0;
   const cloakFlow=running?Math.sin(phase+1.1)*2.2:climbing?climbCycle*1.4:falling?3:rising?-2:Math.sin(t*2.5)*.45;
   ctx.translate(x+w/2,y+h/2+(running?Math.abs(Math.sin(phase))*0.65:0));
-  ctx.scale(face*(dashing?1.15:1),1);
+  ctx.scale(face*(dashing?1.15:1)*1.16,1.16);
   ctx.globalAlpha*=alpha;
   if(landPulse>0&&grounded)ctx.scale(1+landPulse*.045,1-landPulse*.09);
 
