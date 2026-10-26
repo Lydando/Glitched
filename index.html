@@ -1448,64 +1448,166 @@ function draw(){
     }
   }
 
-  // COLOSSAL RUIN SILHOUETTES
-  // A small number of monumental forms replace the feeling of an endless office-wall pattern.
-  // Everything stays behind the gameplay geometry and scales with the mobile viewport.
+  // SERVER-VAULT LANDMARKS — world-anchored, not glued to the camera.
+  // The major ring occupies a real world coordinate and scrolls naturally past the player.
+  // Additional parallax layers imply a server megastructure extending far beyond the viewport.
   {
     const alt=clamp(runHeight/15000,0,1);
-    const fade=1-clamp((runHeight-10000)/9000,0,.42);
-    const cx=viewW*.51, base=vh*1.02, span=viewW*.47, crownY=vh*.13;
+    const fade=1-clamp((runHeight-11000)/10000,0,.5);
+    const worldY=-1050;
+    // Farthest layer: almost invisible wireframe silhouettes, like remote server-sector outlines.
     ctx.save();
-    // Distant ring: a gigantic broken transit/temple arch, mostly silhouette with a thin rim light.
-    ctx.beginPath();
-    ctx.moveTo(cx-span,base);
-    ctx.lineTo(cx-span*.96,vh*.53);
-    ctx.bezierCurveTo(cx-span*.94,vh*.20,cx-span*.55,crownY,cx,vh*.10);
-    ctx.bezierCurveTo(cx+span*.58,crownY*.88,cx+span*.98,vh*.24,cx+span, vh*.54);
-    ctx.lineTo(cx+span*.98,base);
-    ctx.lineTo(cx+span*.87,base);
-    ctx.lineTo(cx+span*.87,vh*.55);
-    ctx.bezierCurveTo(cx+span*.85,vh*.31,cx+span*.48,vh*.18,cx,vh*.18);
-    ctx.bezierCurveTo(cx-span*.48,vh*.18,cx-span*.84,vh*.32,cx-span*.85,vh*.55);
-    ctx.lineTo(cx-span*.85,base);ctx.closePath();
-    ctx.fillStyle=`rgba(2,8,18,${.40+alt*.15})`;ctx.fill();
-    ctx.strokeStyle=`rgba(47,141,168,${(.17+alt*.04)*fade})`;ctx.lineWidth=2.2;ctx.stroke();
-    // Broken crown gap: two luminous cuts imply the structure continues beyond the screen.
-    ctx.strokeStyle=`rgba(83,211,231,${(.18+alt*.08)*fade})`;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(cx-span*.53,vh*.22);ctx.lineTo(cx-span*.43,vh*.17);ctx.lineTo(cx-span*.31,vh*.16);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx+span*.35,vh*.16);ctx.lineTo(cx+span*.48,vh*.19);ctx.lineTo(cx+span*.54,vh*.24);ctx.stroke();
-
-    // Huge offset monoliths at varying depth, with narrow lit seams rather than window grids.
-    for(let side=0;side<2;side++){
-      const x=side===0?viewW*.08:viewW*.79;
-      const w=viewW*(.10+noise(14200+side)*.055);
-      const top=vh*(.17+noise(14210+side)*.20);
-      ctx.fillStyle=`rgba(2,7,16,${.48+alt*.14})`;
+    ctx.translate(0,-cam*.075);
+    for(let i=0;i<7;i++){
+      const seed=14300+i*31;
+      const x=viewW*(.04+noise(seed)*.90);
+      const y=worldY-vh*(.35+noise(seed+1)*.72);
+      const w=viewW*(.10+noise(seed+2)*.20),h=vh*(.35+noise(seed+3)*.60);
+      ctx.strokeStyle=`rgba(72,157,194,${(.035+noise(seed+4)*.035)*fade})`;
+      ctx.lineWidth=.8;
       ctx.beginPath();
-      ctx.moveTo(x,top+18);ctx.lineTo(x+w*.14,top);ctx.lineTo(x+w,top+vh*.035);
-      ctx.lineTo(x+w*.84,base);ctx.lineTo(x-w*.05,base);ctx.closePath();ctx.fill();
-      ctx.strokeStyle=`rgba(43,130,157,${(.15+alt*.08)*fade})`;ctx.lineWidth=1.4;
-      ctx.beginPath();ctx.moveTo(x+w*.16,top+vh*.04);ctx.lineTo(x+w*.13,base);ctx.stroke();
-      ctx.strokeStyle=`rgba(91,216,235,${(.10+alt*.05)*fade})`;ctx.lineWidth=1;
-      for(let seam=0;seam<3;seam++){
-        const sy=top+vh*(.10+seam*.19);
-        ctx.beginPath();ctx.moveTo(x+w*.18,sy);ctx.lineTo(x+w*(.58+noise(14220+side*5+seam)*.28),sy+vh*.012);ctx.stroke();
-      }
-      // Floating disconnected cap hints that the architecture has begun to detach from reality.
-      if(side===0){
-        ctx.fillStyle=`rgba(3,10,21,${.60+alt*.12})`;
-        ctx.beginPath();ctx.moveTo(x-w*.12,top-vh*.035);ctx.lineTo(x+w*.58,top-vh*.05);
-        ctx.lineTo(x+w*.76,top-vh*.025);ctx.lineTo(x+w*.05,top-vh*.008);ctx.closePath();ctx.fill();
-        ctx.strokeStyle=`rgba(61,188,210,${.20*fade})`;ctx.stroke();
+      ctx.moveTo(x,y);ctx.lineTo(x+w*.16,y-h*.08);ctx.lineTo(x+w,y-h*.02);
+      ctx.lineTo(x+w*.91,y+h*.76);ctx.lineTo(x+w*.35,y+h);ctx.lineTo(x,y+h*.84);ctx.closePath();ctx.stroke();
+      // Tiny node traces and disconnected data rails.
+      for(let n=0;n<4;n++){
+        const nx=x+w*(.12+noise(seed+n+5)*.76),ny=y+h*(.14+noise(seed+n+9)*.68);
+        ctx.fillStyle=`rgba(76,207,231,${(.06+noise(seed+n+13)*.04)*fade})`;
+        ctx.fillRect(nx,ny,2+noise(seed+n+17)*5,1);
       }
     }
-    // A soft shaft spills through the arch's opening, making the silhouette readable on phone screens.
-    const beam=ctx.createLinearGradient(cx, vh*.18, cx, base);
-    beam.addColorStop(0,'rgba(78,190,226,0)');
-    beam.addColorStop(.32,`rgba(58,157,205,${.035+alt*.018})`);
-    beam.addColorStop(.72,`rgba(44,126,179,${.025+alt*.015})`);
-    beam.addColorStop(1,'rgba(9,28,51,0)');
-    ctx.fillStyle=beam;ctx.fillRect(cx-span*.48,vh*.18,span*.96,base-vh*.18);
+    ctx.restore();
+
+    // Mid-distance broken data spines: layered translucent slabs with etched circuit seams.
+    ctx.save();
+    ctx.translate(0,-cam*.24);
+    for(let i=0;i<5;i++){
+      const seed=14600+i*37;
+      const x=viewW*(.04+noise(seed)*.83);
+      const y=worldY+vh*(.12+noise(seed+1)*.42);
+      const w=viewW*(.12+noise(seed+2)*.18),h=vh*(.18+noise(seed+3)*.32);
+      ctx.fillStyle=`rgba(3,10,23,${.18+alt*.08})`;
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w*.12,y-h*.10);ctx.lineTo(x+w,y+h*.04);
+      ctx.lineTo(x+w*.86,y+h);ctx.lineTo(x-w*.04,y+h*.82);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(52,145,179,${(.10+alt*.045)*fade})`;ctx.lineWidth=1.1;ctx.stroke();
+      for(let seam=0;seam<5;seam++){
+        const sy=y+h*(.12+seam*.16);
+        const sx=x+w*(.08+noise(seed+seam+4)*.15);
+        const ex=x+w*(.58+noise(seed+seam+11)*.36);
+        ctx.strokeStyle=`rgba(66,192,217,${(.07+noise(seed+seam+18)*.07)*fade})`;
+        ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,sy+noise(seed+seam+22)*5);
+        if(seam%2===0){ctx.lineTo(ex-7,sy+8);ctx.lineTo(ex+8,sy+8);}
+        ctx.stroke();
+      }
+      // Broken fiber-optic bundles spill from a severed slab.
+      if(i%2===0){
+        for(let strand=0;strand<5;strand++){
+          const sx=x+w*(.28+strand*.09),sy=y+h*.80;
+          ctx.strokeStyle=`rgba(46,199,221,${(.10+noise(seed+strand+29)*.09)*fade})`;
+          ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx-4,sy+10,sx+8,sy+18,sx+(noise(seed+strand+35)-.5)*24,sy+30+noise(seed+strand+40)*18);ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+
+    // Main monumental server gate: one fixed landmark in the world, with real thickness,
+    // segmented armor, inset channels, support buttresses, missing panels and hanging cables.
+    ctx.save();
+    ctx.translate(0,-cam);
+    const cx=viewW*.5, base=worldY+vh*1.30, top=worldY-vh*.18, span=viewW*.47;
+    const outerL=cx-span,outerR=cx+span,innerL=cx-span*.77,innerR=cx+span*.77;
+    // Massive dark body, deliberately uneven at the crown and broken at the shoulders.
+    ctx.beginPath();
+    ctx.moveTo(outerL,base);ctx.lineTo(outerL+span*.04,worldY+vh*.10);
+    ctx.lineTo(outerL+span*.16,worldY-vh*.08);ctx.lineTo(cx-span*.48,top+vh*.05);
+    ctx.lineTo(cx-span*.30,top);ctx.lineTo(cx-span*.19,top+vh*.025);
+    ctx.lineTo(cx-span*.08,top-vh*.012);ctx.lineTo(cx+span*.04,top+vh*.018);
+    ctx.lineTo(cx+span*.17,top-vh*.04);ctx.lineTo(cx+span*.28,top+vh*.012);
+    ctx.lineTo(cx+span*.43,worldY-vh*.04);ctx.lineTo(outerR-span*.14,worldY+vh*.02);
+    ctx.lineTo(outerR-span*.04,worldY+vh*.20);ctx.lineTo(outerR,base);
+    ctx.lineTo(innerR,base);ctx.lineTo(innerR,worldY+vh*.22);
+    ctx.lineTo(innerR-span*.10,worldY+vh*.04);ctx.lineTo(cx+span*.30,top+vh*.13);
+    ctx.lineTo(cx+span*.17,top+vh*.15);ctx.lineTo(cx+span*.02,top+vh*.12);
+    ctx.lineTo(cx-span*.14,top+vh*.15);ctx.lineTo(cx-span*.29,top+vh*.13);
+    ctx.lineTo(innerL+span*.10,worldY+vh*.12);ctx.lineTo(innerL,worldY+vh*.28);
+    ctx.lineTo(innerL,base);ctx.closePath();
+    const bodyGrad=ctx.createLinearGradient(outerL,0,outerR,0);
+    bodyGrad.addColorStop(0,'rgba(2,8,18,.82)');bodyGrad.addColorStop(.25,'rgba(5,19,32,.62)');
+    bodyGrad.addColorStop(.52,'rgba(4,15,29,.35)');bodyGrad.addColorStop(.78,'rgba(5,18,32,.68)');
+    bodyGrad.addColorStop(1,'rgba(2,7,17,.86)');
+    ctx.fillStyle=bodyGrad;ctx.fill();
+    ctx.strokeStyle=`rgba(44,133,164,${(.17+alt*.08)*fade})`;ctx.lineWidth=2;ctx.stroke();
+
+    // Thick inner ring ribs: dark armor lips, then fine reflective edges for depth.
+    for(let side=0;side<2;side++){
+      const x=side===0?outerL+span*.08:outerR-span*.08;
+      const ix=side===0?innerL+span*.04:innerR-span*.04;
+      ctx.fillStyle='rgba(1,5,14,.58)';
+      ctx.beginPath();ctx.moveTo(x,worldY+vh*.14);ctx.lineTo(ix,worldY+vh*.22);
+      ctx.lineTo(ix,base);ctx.lineTo(x+span*.025,base);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(67,177,202,${(.18+alt*.08)*fade})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x,worldY+vh*.14);ctx.lineTo(x+span*.02,worldY+vh*.38);
+      ctx.lineTo(x+span*.01,base-vh*.10);ctx.stroke();
+      ctx.strokeStyle=`rgba(96,220,237,${(.08+alt*.07)*fade})`;ctx.lineWidth=.8;
+      ctx.beginPath();ctx.moveTo(ix,worldY+vh*.26);ctx.lineTo(ix,base-vh*.05);ctx.stroke();
+    }
+
+    // Recessed server bays and armor plates across both legs of the gate.
+    for(let side=0;side<2;side++){
+      for(let bay=0;bay<8;bay++){
+        const bx=side===0?outerL+span*(.12+(bay%2)*.09):cx+span*(.30+(bay%2)*.09);
+        const by=worldY+vh*(.22+Math.floor(bay/2)*.22+(bay%2)*.025);
+        const bw=span*(.065+noise(14700+side*30+bay)*.025),bh=vh*(.09+noise(14800+bay)*.035);
+        ctx.fillStyle='rgba(0,5,14,.72)';ctx.fillRect(bx,by,bw,bh);
+        ctx.fillStyle='rgba(21,48,66,.48)';ctx.fillRect(bx+3,by+3,bw-6,3);
+        ctx.strokeStyle=`rgba(51,151,180,${(.13+noise(14900+bay)*.08)*fade})`;ctx.lineWidth=.8;ctx.strokeRect(bx,by,bw,bh);
+        // Rows of minute server LEDs, intentionally restrained so the whole gate stays dark.
+        for(let led=0;led<5;led++){
+          const lx=bx+5+led*(bw-10)/5;
+          ctx.fillStyle=led===((bay+side)%5)?`rgba(74,225,240,${.20*fade})`:'rgba(40,105,129,.24)';
+          ctx.fillRect(lx,by+bh-7,2,2);
+        }
+        // Exposed fasteners and a short etched bus line.
+        ctx.fillStyle='rgba(126,183,197,.35)';
+        ctx.fillRect(bx+2,by+2,2,2);ctx.fillRect(bx+bw-4,by+2,2,2);
+        ctx.strokeStyle=`rgba(67,185,209,${.10*fade})`;
+        ctx.beginPath();ctx.moveTo(bx+5,by+bh*.45);ctx.lineTo(bx+bw*.38,by+bh*.45);
+        ctx.lineTo(bx+bw*.45,by+bh*.60);ctx.lineTo(bx+bw-5,by+bh*.60);ctx.stroke();
+      }
+    }
+
+    // Crown plates, floating broken fragments and server-fiber bundles.
+    for(let plate=0;plate<9;plate++){
+      const px=cx-span*.53+plate*span*.132,py=top+vh*(.025+noise(15000+plate)*.04);
+      const pw=span*(.085+noise(15100+plate)*.04),ph=vh*(.035+noise(15200+plate)*.035);
+      ctx.fillStyle='rgba(5,18,31,.88)';
+      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+pw*.86,py+ph*.12);
+      ctx.lineTo(px+pw,py+ph*.78);ctx.lineTo(px+pw*.12,py+ph);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(66,184,206,${(.12+noise(15300+plate)*.10)*fade})`;ctx.lineWidth=1;ctx.stroke();
+      if(plate%3===1){
+        ctx.strokeStyle=`rgba(87,219,236,${.16*fade})`;
+        ctx.beginPath();ctx.moveTo(px+pw*.3,py+ph*.25);ctx.lineTo(px+pw*.45,py+ph*.65);ctx.lineTo(px+pw*.72,py+ph*.38);ctx.stroke();
+      }
+    }
+    // Several disconnected pieces float near the gate, each with layered metal, seams and dangling fibers.
+    for(let piece=0;piece<6;piece++){
+      const seed=15400+piece*19;
+      const px=cx+(noise(seed)-.5)*viewW*.94,py=worldY+vh*(.08+noise(seed+1)*.88);
+      const pw=12+noise(seed+2)*35,ph=7+noise(seed+3)*18;
+      ctx.fillStyle='rgba(3,10,22,.78)';
+      ctx.beginPath();ctx.moveTo(px-pw,py-ph*.25);ctx.lineTo(px-pw*.35,py-ph);
+      ctx.lineTo(px+pw,py-ph*.55);ctx.lineTo(px+pw*.7,py+ph*.55);ctx.lineTo(px-pw*.7,py+ph);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(64,179,203,${(.14+noise(seed+4)*.12)*fade})`;ctx.lineWidth=1;ctx.stroke();
+      ctx.strokeStyle=`rgba(52,201,221,${.13*fade})`;
+      ctx.beginPath();ctx.moveTo(px+pw*.25,py+ph*.4);ctx.lineTo(px+pw*.30,py+ph+9);ctx.lineTo(px+pw*.1,py+ph+16);ctx.stroke();
+    }
+    // The opening emits a soft, vertical cold glow, visible through the structure but never a flat outline.
+    const beam=ctx.createLinearGradient(cx,top,cx,base);
+    beam.addColorStop(0,'rgba(73,193,230,0)');
+    beam.addColorStop(.22,`rgba(73,193,230,${.025+alt*.02})`);
+    beam.addColorStop(.52,`rgba(43,137,193,${.045+alt*.025})`);
+    beam.addColorStop(.85,'rgba(20,75,121,.025)');
+    beam.addColorStop(1,'rgba(5,16,32,0)');
+    ctx.fillStyle=beam;ctx.fillRect(cx-span*.42,top,span*.84,base-top);
     ctx.restore();
   }
 
