@@ -1949,60 +1949,199 @@ function drawEntityFallback(x,y,w,h,ghost){
   ctx.restore();
 }
 function drawEntity(x,y,w,h,ghost){
-  // Lean, athletic hooded runner. Every body part is drawn and animated in code.
+  // Fully procedural, layered hooded runner. Designed around Prototype 2's silhouette,
+  // with restrained shard breakup inspired by Prototype 1. No external art assets.
   ctx.save();
   const t=elapsed, grounded=!ghost&&player.onGround, climbing=!ghost&&player.climbing;
   const dashing=!ghost&&player.dashVisual>0, rising=!ghost&&player.vy<-70, falling=!ghost&&player.vy>90;
   const running=grounded&&Math.abs(player.vx)>18, face=player.face||1;
   const phase=t*(running?15:5), jumpPulse=!ghost?Math.max(0,Math.min(1,player.jumpAnim/.24)):0;
   const landPulse=!ghost?Math.max(0,Math.min(1,player.landAnim/.18)):0;
-  const bob=running?Math.abs(Math.sin(phase))*1.2:grounded?Math.sin(t*3)*.25:0;
-  const alpha=ghost?.27:1, stride=running?Math.sin(phase)*7:climbing?Math.sin(t*9)*4:0;
-  const tuck=rising?3:falling?-1:0;
-  ctx.translate(x+w/2,y+h/2+bob);ctx.scale(face*(dashing?1.24:1),1);ctx.globalAlpha*=alpha;
-  if(landPulse>0&&grounded)ctx.scale(1+landPulse*.08,1-landPulse*.14);
-  // Restrained aura: the silhouette, not the glow, should define the character.
-  const halo=ctx.createRadialGradient(0,0,1,0,0,23);halo.addColorStop(0,ghost?'rgba(71,238,255,.04)':'rgba(48,226,255,.13)');halo.addColorStop(1,'rgba(44,190,255,0)');
-  ctx.fillStyle=halo;ctx.beginPath();ctx.ellipse(0,1,22,23,0,0,Math.PI*2);ctx.fill();
-  if(dashing&&!ghost){ctx.save();ctx.globalCompositeOperation='lighter';for(let i=3;i>0;i--){ctx.globalAlpha=.09*i;ctx.fillStyle=i%2?'#ff3cbd':'#43efff';ctx.beginPath();ctx.moveTo(-4-i*4,-8+i);ctx.lineTo(-13-i*7,-4+i);ctx.lineTo(-18-i*7,3+i);ctx.lineTo(-5-i*4,7+i);ctx.closePath();ctx.fill();}ctx.restore();ctx.globalAlpha=alpha;}
-  // Narrow split hood-cloak, trailing behind the runner instead of forming a round body.
-  const cloakSwing=running?Math.sin(phase+1)*2.5:falling?4:rising?-2:Math.sin(t*3)*.6;
-  ctx.save();ctx.fillStyle='#101a2b';ctx.strokeStyle='#2e9dad';ctx.lineWidth=.9;ctx.beginPath();
-  ctx.moveTo(-3,-10);ctx.lineTo(-7,-7);ctx.lineTo(-8,0);ctx.lineTo(-13,10+cloakSwing);ctx.lineTo(-7,7+cloakSwing*.5);
-  ctx.lineTo(-3,13+cloakSwing);ctx.lineTo(1,6);ctx.lineTo(4,10+cloakSwing*.6);ctx.lineTo(5,-7);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.strokeStyle='#ff4ac7';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(-5,-3);ctx.lineTo(-7,3);ctx.lineTo(-11,8+cloakSwing);ctx.stroke();ctx.restore();
-  function limb(points,color,width,glow){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.shadowColor=glow||color;ctx.shadowBlur=ghost?0:2.5;ctx.stroke();ctx.shadowBlur=0;}
-  // Athletic legs: long, narrow limbs with a clear stride and airborne tuck.
-  const legA=climbing?Math.sin(t*9)*4:stride, legB=climbing?-Math.sin(t*9)*4:-stride;
-  const kneeY=9+(rising?-2:falling?2:0), footY=15+(falling?2:rising?-2:0);
-  limb([[-2,4],[-3+legA*.48,kneeY-tuck],[-5+legA,footY-tuck]],'#172538',3.1,'#36d8ed');
-  limb([[2,4],[3+legB*.48,kneeY-tuck],[5+legB,footY-tuck]],'#253047',3.1,'#a64d9a');
-  // Slim boots and sharp soles.
-  limb([[-6+legA,footY-tuck],[-2+legA,footY-tuck]],'#8eeef3',1.7);limb([[4+legB,footY-tuck],[8+legB,footY-tuck-1]],'#b9a5d0',1.7);
-  // Compact chest, tapered waist, angular shoulder and hip plates.
-  ctx.save();ctx.rotate(dashing?-.2:rising?-.19:falling?.16:climbing?-.08:running?Math.sin(phase)*.035:0);
-  ctx.fillStyle='#101c2d';ctx.strokeStyle='#55cbd9';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(-4,-10);ctx.lineTo(2,-11);ctx.lineTo(5,-6);ctx.lineTo(3,1);ctx.lineTo(2,5);ctx.lineTo(-3,5);ctx.lineTo(-5,0);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#26364a';ctx.beginPath();ctx.moveTo(-3,-8);ctx.lineTo(1,-9);ctx.lineTo(3,-4);ctx.lineTo(-1,-2);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#ff4ec4';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(1,-5);ctx.lineTo(2,-1);ctx.lineTo(0,3);ctx.stroke();
-  ctx.fillStyle='#b9fbff';ctx.beginPath();ctx.moveTo(-4,-8);ctx.lineTo(-6,-5);ctx.lineTo(-3,-4);ctx.closePath();ctx.fill();ctx.restore();
-  // Running arm swing; jump raises the arms for a readable takeoff and airborne pose.
-  const armA=climbing?Math.sin(t*9+Math.PI)*5:rising?-5:falling?3:running?Math.sin(phase+Math.PI)*5:0;
-  const armB=climbing?-Math.sin(t*9+Math.PI)*5:rising?-7:falling?5:running?Math.sin(phase)*5:0;
-  limb([[-4,-8],[-7+armA*.4,-4],[-7+armA,0+(dashing?-4:0)]],'#1a2a3e',2.7,'#42dbe9');
-  limb([[3,-8],[6+armB*.4,-4],[6+armB,1+(dashing?-5:0)]],'#222b40',2.7,'#d94aa8');
-  ctx.fillStyle='#bafcff';ctx.beginPath();ctx.arc(-7+armA,dashing?-4:0,1.35,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ff83dc';ctx.beginPath();ctx.arc(6+armB,dashing?-5:1,1.35,0,Math.PI*2);ctx.fill();
-  // Deep hood with a narrow, angular mask; no oversized baby-like head.
-  const hy=-15+(rising?-1:falling?1:0)+(climbing?Math.sin(t*9)*.5:0);ctx.save();
-  ctx.fillStyle='#070f1d';ctx.strokeStyle='#5ccbd8';ctx.lineWidth=1.05;ctx.beginPath();
-  ctx.moveTo(-5,hy+2);ctx.lineTo(-4,hy-5);ctx.lineTo(-1,hy-9);ctx.lineTo(3,hy-8);ctx.lineTo(6,hy-3);ctx.lineTo(6,hy+2);ctx.lineTo(2,hy+5);ctx.lineTo(-3,hy+4);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#7394a7';ctx.beginPath();ctx.moveTo(-3,hy-3);ctx.lineTo(2,hy-5);ctx.lineTo(4,hy-1);ctx.lineTo(1,hy+2);ctx.lineTo(-3,hy+1);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#ff4ac7';ctx.shadowColor='#ff3dbf';ctx.shadowBlur=ghost?0:3;ctx.fillRect(1,hy-1,2.5,1);
-  ctx.fillStyle='#d8ffff';ctx.fillRect(-2,hy-1,1.5,1);ctx.shadowBlur=0;
-  ctx.strokeStyle='#ff54c9';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-1,hy-8);ctx.lineTo(-3,hy-11);ctx.stroke();ctx.restore();
-  // A small number of crisp signal fragments; keep the body readable.
-  if(dashing||rising){ctx.save();ctx.globalCompositeOperation='lighter';for(let i=0;i<3;i++){ctx.globalAlpha=alpha*(.3+.25*Math.sin(t*9+i));ctx.fillStyle=i%2?'#ff42bd':'#8dfaff';ctx.fillRect(-8-i*2,-4+i*5,1.5,1.5);}ctx.restore();}
+  const stride=running?Math.sin(phase):0, climbCycle=climbing?Math.sin(t*9):0;
+  const alpha=ghost?.22:1, tuck=rising?2.8:falling?-1.2:0;
+  const cloakFlow=running?Math.sin(phase+1.1)*2.2:climbing?climbCycle*1.4:falling?3:rising?-2:Math.sin(t*2.5)*.45;
+  ctx.translate(x+w/2,y+h/2+(running?Math.abs(Math.sin(phase))*0.65:0));
+  ctx.scale(face*(dashing?1.15:1),1);
+  ctx.globalAlpha*=alpha;
+  if(landPulse>0&&grounded)ctx.scale(1+landPulse*.045,1-landPulse*.09);
+
+  // Tight cyan rim light, never strong enough to replace the actual silhouette.
+  const aura=ctx.createRadialGradient(0,0,2,0,0,22);
+  aura.addColorStop(0,ghost?'rgba(59,229,255,.025)':'rgba(37,205,255,.105)');
+  aura.addColorStop(.55,'rgba(23,129,203,.035)');aura.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=aura;ctx.beginPath();ctx.ellipse(0,0,22,23,0,0,Math.PI*2);ctx.fill();
+
+  function path(points,fill,stroke='#00000000',line=0){
+    ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
+    for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+    ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill();}
+    if(line>0){ctx.strokeStyle=stroke;ctx.lineWidth=line;ctx.stroke();}
+  }
+  function line(points,color,width,glow=0){
+    ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
+    for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+    ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.shadowColor=color;ctx.shadowBlur=ghost?0:glow;ctx.stroke();ctx.shadowBlur=0;
+  }
+  function polygon(points,fill,stroke,lineWidth=0){
+    path(points,fill,stroke,lineWidth);
+  }
+
+  // Dash breakup: short, directional fragments trail the body instead of obscuring it.
+  if(dashing&&!ghost){
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<5;i++){
+      const yy=-11+i*5, back=-9-i*3;
+      ctx.globalAlpha=.16+(i%2)*.06;
+      polygon([[back,yy],[back-5-i,yy-1],[back-8-i,yy+1],[back-2,yy+3]],i%2?'#ff3fb9':'#43efff');
+    }
+    ctx.globalAlpha=.13;ctx.strokeStyle='#31dfff';ctx.lineWidth=.7;
+    ctx.beginPath();ctx.moveTo(-8,-10);ctx.lineTo(-17,-13);ctx.moveTo(-9,3);ctx.lineTo(-18,7);ctx.stroke();
+    ctx.restore();ctx.globalAlpha=alpha;
+  }
+
+  // Backpack silhouette behind the shoulders: compact, angular and mechanically readable.
+  ctx.save();
+  polygon([[-3,-9],[3,-10],[6,-6],[5,1],[2,4],[-4,1],[-5,-5]],'#080f1d','#36556d',.75);
+  polygon([[-4,-6],[-1,-8],[3,-6],[4,-2],[0,1],[-3,-1]],'#16283b','#2b91a9',.65);
+  ctx.strokeStyle='#41dff3';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(1,-3,2.15,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#9af8ff';ctx.fillRect(.4,-4.2,1.2,2.4);
+  // Harness straps wrap across the pack and chest.
+  line([[-3,-8],[0,-3],[3,0]],'#647d91',.8);
+  line([[3,-8],[1,-4],[-2,0]],'#263e53',.8);
+  ctx.restore();
+
+  // Long split mantle: two separate tapered tails create a fast, non-round silhouette.
+  ctx.save();
+  polygon([[-4,-9],[-7,-7],[-8,-1],[-12,7+cloakFlow],[-8,5+cloakFlow*.65],[-4,10+cloakFlow],
+           [-2,4],[-1,-5]],'#0a1423','#29495f',.75);
+  polygon([[1,-8],[5,-6],[6,0],[9,6+cloakFlow*.55],[5,5+cloakFlow*.45],[2,9+cloakFlow],
+           [0,3]],'#111a2b','#263d55',.7);
+  polygon([[-6,-2],[-7,3],[-10,7+cloakFlow],[-7,5+cloakFlow]],'#263449');
+  polygon([[3,-3],[4,2],[7,6+cloakFlow*.55],[5,4+cloakFlow*.5]],'#27364a');
+  line([[-5,-3],[-6,2],[-9,6+cloakFlow]],'#42cce3',.65,.5);
+  line([[2,-2],[3,3],[5,6+cloakFlow]],'#d33eaa',.55,.4);
+  ctx.restore();
+
+  // Leg rig: upper and lower sections are separately articulated around the hip and knee.
+  const leg1=climbing?climbCycle*4.1:stride*6.4;
+  const leg2=climbing?-climbCycle*3.8:-stride*6.4;
+  const airborneSpread=rising?-1.5:falling?2:0;
+  const hipY=3, kneeBase=9+airborneSpread, footBase=14+(falling?1.5:rising?-2:0);
+  const k1x=-2+leg1*.48, k2x=2+leg2*.48;
+  const f1x=-3+leg1, f2x=3+leg2;
+  // Far leg first, with segmented shin, knee guard, boot and sole.
+  line([[2,hipY],[k2x,kneeBase-tuck*.55],[f2x,footBase-tuck]],'#080f1b',4.1);
+  line([[2,hipY],[k2x,kneeBase-tuck*.55],[f2x,footBase-tuck]],'#27354a',2.8);
+  polygon([[k2x-1.6,kneeBase-1.2-tuck*.55],[k2x+1.4,kneeBase-1-tuck*.55],
+           [k2x+1.2,kneeBase+1-tuck*.55],[k2x-1,kneeBase+1.1-tuck*.55]],'#405066','#1a2a40',.55);
+  polygon([[f2x-1.6,footBase-1.2-tuck],[f2x+2.8,footBase-1.2-tuck],
+           [f2x+4.1,footBase+.2-tuck],[f2x+.1,footBase+.7-tuck]],'#0b1421','#52687b',.55);
+  line([[f2x-1,footBase+.55-tuck],[f2x+3.6,footBase+.55-tuck]],'#5ad8e8',.65,.4);
+  // Near leg.
+  line([[-2,hipY],[k1x,kneeBase-tuck*.55],[f1x,footBase-tuck]],'#070d18',4.2);
+  line([[-2,hipY],[k1x,kneeBase-tuck*.55],[f1x,footBase-tuck]],'#344157',2.7);
+  polygon([[k1x-1.5,kneeBase-1.2-tuck*.55],[k1x+1.5,kneeBase-1.1-tuck*.55],
+           [k1x+1.2,kneeBase+1-tuck*.55],[k1x-1,kneeBase+1.1-tuck*.55]],'#566478','#202c3d',.55);
+  polygon([[f1x-2.5,footBase-1.3-tuck],[f1x+1.8,footBase-1.2-tuck],
+           [f1x+3,footBase+.1-tuck],[f1x-1,footBase+.8-tuck]],'#17263a','#668196',.6);
+  polygon([[f1x-1.5,footBase-.7-tuck],[f1x+1.5,footBase-.65-tuck],
+           [f1x+2.2,footBase-.1-tuck],[f1x-1.2,footBase+.05-tuck]],'#3e5368');
+  line([[f1x-1.8,footBase+.65-tuck],[f1x+2.7,footBase+.65-tuck]],'#a0f6ff',.7,.6);
+  // Thigh straps and shin vents.
+  line([[k1x-.8,kneeBase-3-tuck*.5],[k1x+1.2,kneeBase-2.6-tuck*.5]],'#0a0f1a',1.1);
+  line([[f2x+.1,footBase-2-tuck],[f2x+1.4,footBase-1.8-tuck]],'#46cde1',.55);
+
+  // Torso rotates subtly with movement; chest narrows to a defined waist.
+  ctx.save();
+  const torsoTilt=dashing?-.24:rising?-.16:falling?.13:climbing?-.08:running?Math.sin(phase)*.035:0;
+  ctx.translate(0,-1);ctx.rotate(torsoTilt);
+  // Under-suit and segmented chest armour.
+  polygon([[-4.5,-10],[2.8,-10.5],[5,-6],[3.8,-1],[2.3,4],[-2.8,4.3],[-5,0]],'#0b1422','#496477',.8);
+  polygon([[-3.8,-8.6],[-.3,-9.1],[1.3,-5.2],[-.6,-2.1],[-3.7,-3]],'#1d2b3f','#30485e',.6);
+  polygon([[.4,-8.7],[3,-8],[4,-5.7],[2.2,-3],[.2,-4.2]],'#25364a','#526579',.6);
+  // Ribbed abdominal plates, separated by dark seams.
+  polygon([[-3,-2.5],[2.1,-2.6],[2.6,.2],[1.8,2.5],[-2.2,2.7],[-3.4,.2]],'#101d2e','#2c4358',.55);
+  line([[-2.2,-.3],[1.7,-.3]],'#425a70',.5);
+  line([[-1.8,1.3],[1.5,1.3]],'#293e54',.5);
+  // Diagonal tactical harness and clasp.
+  line([[-3.5,-8],[.2,-4],[3,1]],'#070c15',1.8);
+  line([[-3.5,-8],[.2,-4],[3,1]],'#74879a',.72);
+  polygon([[-.5,-5],[1,-4.4],[.5,-2.8],[-1,-3.5]],'#93b3c5','#1b3045',.45);
+  ctx.fillStyle='#41e6f7';ctx.fillRect(-.15,-4.4,.6,.8);
+  // Shoulder pauldrons, beveled plates and cyan seam.
+  polygon([[-5,-8],[-3.8,-10],[-1.6,-9.1],[-2,-6.7],[-4.6,-6.4]],'#26384c','#6c8798',.65);
+  polygon([[2.2,-9.4],[4.2,-9.3],[5.3,-7.3],[3.8,-6.2],[1.8,-7.1]],'#17263a','#5b7489',.65);
+  line([[-4.5,-7.7],[-3.4,-8.9]],'#42e8f5',.7,.7);
+  line([[3.1,-8.7],[4.2,-7.7]],'#4ad7e9',.6,.5);
+  // Belt, utility cells and a small asymmetric waist plate.
+  line([[-3,2.4],[2.8,2.4]],'#77889a',.75);
+  polygon([[-2.6,2],[.2,2],[.6,4],[-2.1,4]],'#26364b','#637b8e',.55);
+  polygon([[2,1.8],[3.5,1.5],[3.1,3.5],[1.8,3.4]],'#101a2a','#3b5268',.5);
+  ctx.fillStyle='#41dff1';ctx.fillRect(-.3,2.6,.7,.7);
+  // Glitch crack through one armour panel, cyan with a faint magenta echo.
+  line([[1.9,-6.7],[.9,-5.2],[1.7,-4.2],[.6,-2.8]],'#39eaff',.8,1.2);
+  line([[2.6,-6.4],[1.6,-5],[2.3,-4.1]],'#fa42c0',.35,.5);
+  ctx.restore();
+
+  // Arms use shoulder/elbow/wrist joints. The forearm armour catches the cyan rim.
+  const armA=climbing?climbCycle*5:rising?-5.5:falling?3.5:running?-stride*5.2:0;
+  const armB=climbing?-climbCycle*5:rising?-7:falling?5:running?stride*5.2:0;
+  const wristYA=dashing?-5:rising?-5:falling?1:running?Math.max(-1,armA*.25):1;
+  const wristYB=dashing?-3:rising?-7:falling?2:running?Math.max(-1,armB*.25):1;
+  // Back arm and gloved hand.
+  line([[3.6,-8],[6+armB*.42,-4.7],[6+armB,wristYB]],'#070d18',3.5);
+  line([[3.6,-8],[6+armB*.42,-4.7],[6+armB,wristYB]],'#26354a',2.35);
+  polygon([[5+armB*.42,-5.4],[7+armB*.42,-4.8],[7.2+armB*.42,-3.1],[5.4+armB*.42,-3.5]],'#45596d','#111d2c',.5);
+  line([[5.4+armB*.42,-4.5],[6.7+armB*.42,-3.8]],'#5ad8e8',.55);
+  line([[6+armB,wristYB],[7+armB,wristYB+.7],[7.4+armB,wristYB-.3]],'#0a111c',1.5);
+  // Front arm.
+  line([[-4,-8],[-6.5+armA*.42,-4.8],[-6.5+armA,wristYA]],'#060d18',3.7);
+  line([[-4,-8],[-6.5+armA*.42,-4.8],[-6.5+armA,wristYA]],'#34445a',2.35);
+  polygon([[-7+armA*.42,-5.3],[-5.4+armA*.42,-5.5],[-5.2+armA*.42,-3.7],[-6.8+armA*.42,-3.3]],'#647589','#18273a',.5);
+  polygon([[-7.2+armA,-1.1+wristYA],[-5.8+armA,-1.1+wristYA],[-5.3+armA,.1+wristYA],[-6.9+armA,.6+wristYA]],'#111c2b','#53687b',.55);
+  line([[-6.7+armA,-.5+wristYA],[-5.6+armA,-.3+wristYA]],'#50e2f0',.6,.6);
+  // Forearm guards and small wrist emitters.
+  polygon([[-7+armA*.55,-4.4],[-5.6+armA*.55,-4.8],[-5.2+armA*.75,-2.9],[-6.8+armA*.75,-2.5]],'#17283b','#63798a',.55);
+  line([[-6.5+armA*.75,-4],[-5.8+armA*.75,-3.1]],'#46dced',.7,.6);
+  ctx.fillStyle='#9bfaff';ctx.fillRect(-6.5+armA,-.1+wristYA,.75,.75);
+
+  // Hood shell: layered angular fabric, deep shadow and a sharp forward brow.
+  const hy=-15+(rising?-1:falling?.7:0)+(climbing?climbCycle*.35:0);
+  ctx.save();
+  // Rear hood fold and outer cowl.
+  polygon([[-5.1,hy+2.5],[-5.6,hy-3.7],[-3.8,hy-8.3],[-.5,hy-10.1],[3.3,hy-8.5],[6,hy-4.4],[6.2,hy+1.2],[3.3,hy+4.4],[-1.2,hy+4.8]],'#080e19','#4c657a',.9);
+  // Side plane makes the hood feel folded rather than round.
+  polygon([[-5.1,hy-2.8],[-3.5,hy-7.4],[-.3,hy-9.1],[-1.1,hy-3.7],[-3.2,hy+1.7]],'#18283b','#30485e',.5);
+  polygon([[3.1,hy-8.2],[5.4,hy-4.1],[5.5,hy+.8],[2.7,hy+3.4],[1.9,hy-1.2]],'#111c2c','#526b7d',.65);
+  // Crown ridge and folded seam.
+  line([[-3.7,hy-7.2],[-.7,hy-9.2],[2.5,hy-8]],'#70889a',.65);
+  line([[-4.5,hy-2.4],[-4.1,hy+1.5],[-1.7,hy+3.7]],'#263f54',.8);
+  // Deep black face cavity.
+  polygon([[-3.6,hy-3.1],[-1.6,hy-6.2],[2.8,hy-5.6],[4.4,hy-2.1],[2.1,hy+1.3],[-1.5,hy+1.5]],'#020711','#20394c',.6);
+  // Distinctive angular cyan visor: broken chevron, not a simple glowing rectangle.
+  ctx.save();ctx.shadowColor='#00dfff';ctx.shadowBlur=ghost?0:3.4;
+  line([[-1.7,hy-4.6],[.2,hy-4.1],[2.4,hy-2.5],[.7,hy-.1],[-1.4,hy-1.1]],'#08dff7',1.45,2.5);
+  ctx.restore();
+  line([[-1.2,hy-4.1],[.1,hy-3.8]],'#c3ffff',.45,.3);
+  // Visor's lower edge has a tiny dark glass reflection.
+  line([[.2,hy+.2],[1.1,hy-.7]],'#5ba6ba',.45);
+  // Small cyan temple node and magenta glitch seam.
+  ctx.fillStyle='#5df5ff';ctx.fillRect(4.1,hy-3.1,.75,1.1);
+  line([[-3.5,hy-7.4],[-4.4,hy-9.4],[-2.9,hy-8.7]],'#3fe8f5',.6,.5);
+  line([[3.8,hy+1.2],[4.9,hy+2.6],[3.5,hy+3.3]],'#f23db7',.55,.6);
+  ctx.restore();
+
+  // Tiny faceted fragments appear during takeoff and dash, like the body is desynchronising.
+  if((dashing||rising)&&!ghost){
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<4;i++){
+      const yy=-5+i*4, xx=-8-i*1.5;
+      ctx.globalAlpha=.3+.12*Math.sin(t*11+i);
+      polygon([[xx,yy],[xx-2.2,yy-1],[xx-3.4,yy+.4],[xx-1,yy+1.8]],i%2?'#ff40bb':'#7af7ff');
+    }
+    ctx.restore();
+  }
   ctx.restore();
 }
 function roundRect(x,y,w,h,r){
