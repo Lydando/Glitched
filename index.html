@@ -1696,6 +1696,21 @@ function draw(){
       ctx.fillStyle='rgba(108,184,203,.85)';ctx.fillRect(w.x-5,y-2,2,4);ctx.fillRect(w.x+3,y-2,2,4);
       ctx.fillStyle='#8df8ff';ctx.fillRect(w.x-1,y-1,2,3);
     }
+    // Mounting brackets, cable labels and segmented fiber glow add scale to the climbable conduit.
+    for(let mount=w.y1+18;mount<w.y2-8;mount+=56){
+      ctx.fillStyle='rgba(1,6,14,.92)';ctx.fillRect(w.x-10,mount-4,20,8);
+      ctx.fillStyle='rgba(45,92,113,.9)';ctx.fillRect(w.x-9,mount-3,18,6);
+      ctx.fillStyle='rgba(135,205,219,.7)';ctx.fillRect(w.x-8,mount-2,2,2);ctx.fillRect(w.x+6,mount-2,2,2);
+      ctx.fillStyle='rgba(4,15,25,.95)';ctx.fillRect(w.x-3,mount-1,6,3);
+      ctx.fillStyle='rgba(68,224,241,.72)';ctx.fillRect(w.x-1,mount,2,1);
+    }
+    // Small broken data ticks drift off the cable; static, deterministic detail avoids visual noise flicker.
+    for(let tick=0;tick<Math.floor((w.y2-w.y1)/44);tick++){
+      const ty=w.y1+12+tick*44,side=(tick%2===0)?1:-1;
+      ctx.strokeStyle=`rgba(67,216,236,${.13+fracture*.10})`;ctx.lineWidth=.8;
+      ctx.beginPath();ctx.moveTo(w.x+side*5,ty);ctx.lineTo(w.x+side*10,ty+3);ctx.lineTo(w.x+side*8,ty+8);ctx.stroke();
+      ctx.fillStyle='rgba(95,229,243,.42)';ctx.fillRect(w.x+side*9,ty+2,2,2);
+    }
     // Exposed split filaments and occasional corruption, more frequent aloft.
     ctx.strokeStyle=`rgba(69,231,249,${.28+fracture*.25})`;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(w.x-2,w.y1+18);ctx.lineTo(w.x-5,w.y1+28);ctx.lineTo(w.x-2,w.y1+37);ctx.stroke();
@@ -1741,6 +1756,40 @@ function draw(){
       ctx.fillStyle='#365a6d';ctx.fillRect(bx,p.y+p.h,5,5);
       ctx.fillStyle='rgba(149,213,226,.7)';ctx.fillRect(bx+1,p.y+p.h+1,1,2);
     }
+    // Fine industrial detailing: beveled deck edges, micro-vents, serial marks and status diodes.
+    // These sit below the bright landing strip so gameplay readability remains the priority.
+    ctx.strokeStyle='rgba(133,204,219,.28)';ctx.lineWidth=.7;
+    ctx.beginPath();
+    ctx.moveTo(p.x+3,p.y+4);ctx.lineTo(p.x+3,p.y+p.h+2);ctx.lineTo(p.x+p.w-3,p.y+p.h+2);
+    ctx.lineTo(p.x+p.w-3,p.y+4);ctx.stroke();
+    for(let vent=0;vent<Math.floor(p.w/31);vent++){
+      const vx=p.x+16+vent*31;
+      const vy=p.y+p.h-1;
+      ctx.fillStyle='rgba(0,4,12,.88)';ctx.fillRect(vx,vy,10,2);
+      ctx.fillStyle=pink?'rgba(255,95,220,.34)':'rgba(66,211,233,.32)';
+      ctx.fillRect(vx+2,vy,5,1);
+      ctx.fillStyle='rgba(138,190,204,.4)';ctx.fillRect(vx+11,vy+1,1,2);
+    }
+    // Corner clamp assemblies and a recessed identifier strip on each platform.
+    for(const side of [0,1]){
+      const cx=side===0?p.x+4:p.x+p.w-8;
+      ctx.fillStyle='rgba(1,6,14,.92)';ctx.fillRect(cx,p.y+3,4,5);
+      ctx.fillStyle=pink?'rgba(255,110,224,.68)':'rgba(91,226,244,.58)';
+      ctx.fillRect(cx+1,p.y+4,2,1);
+      ctx.fillStyle='rgba(131,180,197,.5)';ctx.fillRect(cx+1,p.y+6,1,1);
+    }
+    const idX=p.x+p.w*.48;
+    ctx.fillStyle='rgba(0,4,12,.78)';ctx.fillRect(idX,p.y+5,Math.min(22,p.w*.12),3);
+    for(let mark=0;mark<4;mark++){
+      ctx.fillStyle=mark===1?(pink?'rgba(255,111,224,.65)':'rgba(74,226,243,.62)'):'rgba(92,144,163,.42)';
+      ctx.fillRect(idX+2+mark*4,p.y+6,2,1);
+    }
+    // A few under-deck fiber runs, visibly clipped at the damaged panel joints.
+    ctx.strokeStyle=pink?'rgba(255,91,218,.36)':'rgba(57,202,224,.34)';ctx.lineWidth=.8;
+    ctx.beginPath();ctx.moveTo(p.x+p.w*.16,p.y+p.h+9);
+    ctx.lineTo(p.x+p.w*.16,p.y+p.h+13);ctx.lineTo(p.x+p.w*.31,p.y+p.h+13);
+    ctx.moveTo(p.x+p.w*.73,p.y+p.h+8);ctx.lineTo(p.x+p.w*.73,p.y+p.h+12);
+    ctx.lineTo(p.x+p.w*.84,p.y+p.h+12);ctx.stroke();
     if(pink){
       ctx.strokeStyle='rgba(255,147,236,.9)';ctx.lineWidth=1;
       ctx.beginPath();ctx.moveTo(p.x+p.w*.28,p.y+2);ctx.lineTo(p.x+p.w*.34,p.y+8);ctx.lineTo(p.x+p.w*.42,p.y+3);ctx.lineTo(p.x+p.w*.48,p.y+10);ctx.stroke();
