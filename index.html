@@ -1266,23 +1266,7 @@ function draw(){
         ctx.strokeStyle=`rgba(${colors[1]},${r===0?.18:.12})`;
         ctx.lineWidth=r===0?10:6;ctx.stroke();
       }
-      // Interconnected jagged struts and inner forks.
-      for(let k=0;k<7;k++){
-        const q=k/7, y=length*.42-q*length;
-        const half=width*(1-q*.88);
-        const lx=rails[0][k+1][0], rx=rails[1][k+1][0];
-        ctx.beginPath();
-        ctx.moveTo(lx,y);ctx.lineTo((lx+rx)/2+(n(seed+k)-.5)*half*.8,y-length*.045);
-        ctx.lineTo(rx,y-length*.015);
-        ctx.strokeStyle=`rgba(${colors[0]},${.72*fade})`;ctx.lineWidth=1.25;ctx.stroke();
-        if(k%2===0){
-          const fork=(n(seed+30+k)-.5)*half*1.1;
-          ctx.beginPath();ctx.moveTo((lx+rx)/2,y-length*.045);
-          ctx.lineTo((lx+rx)/2+fork,y-length*(.09+n(seed+40+k)*.07));
-          ctx.strokeStyle=`rgba(${colors[1]},${.7*fade})`;ctx.lineWidth=.9;ctx.stroke();
-        }
-      }
-      // Sharp bright spine running through the depth.
+      // Cross-struts and side forks removed; keep the depth rails and central spine.\n      // Sharp bright spine running through the depth.
       ctx.beginPath();ctx.moveTo(0,length*.43);
       for(let k=1;k<=12;k++){
         const q=k/12;
