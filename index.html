@@ -1367,6 +1367,87 @@ function draw(){
       ctx.fillStyle=fog;ctx.fillRect(0,0,viewW,vh);
     }
   }
+  // CINEMATIC COMPOSITION PASS
+  // Push the playable world forward with deliberate shadow, selective light and large-scale reality loss.
+  {
+    const altitude=clamp(runHeight/16000,0,1);
+    const rupture=clamp((runHeight-1800)/5000,0,1);
+    // Deep vignette creates a focused central stage instead of a uniform blue wash.
+    const vignette=ctx.createRadialGradient(viewW*.50,vh*.46,viewW*.10,viewW*.50,vh*.46,viewW*.78);
+    vignette.addColorStop(0,'rgba(0,3,10,0)');
+    vignette.addColorStop(.52,`rgba(0,3,10,${.12+altitude*.10})`);
+    vignette.addColorStop(1,`rgba(0,1,7,${.66+altitude*.18})`);
+    ctx.fillStyle=vignette;ctx.fillRect(0,0,viewW,vh);
+
+    // Broad shafts are now visible, soft-edged and selective; they do not cross the whole screen as hard bolts.
+    for(let i=0;i<4;i++){
+      const seed=2210+i*41.7, x=viewW*(.14+noise(seed)*.72);
+      const sway=Math.sin(elapsed*.09+seed)*viewW*.018;
+      const width=viewW*(.045+noise(seed+1)*.055);
+      const top=-vh*.10, bottom=vh*1.10;
+      const shaft=ctx.createLinearGradient(x,top,x+sway,bottom);
+      const beamAlpha=.035+noise(seed+2)*.025+altitude*.012;
+      shaft.addColorStop(0,'rgba(105,221,245,0)');
+      shaft.addColorStop(.22,`rgba(105,221,245,${beamAlpha})`);
+      shaft.addColorStop(.56,`rgba(60,156,202,${beamAlpha*.72})`);
+      shaft.addColorStop(1,'rgba(30,95,147,0)');
+      ctx.beginPath();
+      ctx.moveTo(x-width,top);ctx.lineTo(x+width*.5,top);
+      ctx.lineTo(x+sway+width*1.5,bottom);ctx.lineTo(x+sway-width*.8,bottom);
+      ctx.closePath();ctx.fillStyle=shaft;ctx.fill();
+    }
+
+    // Large missing-world bites at the far margins. Their soft bloom and broken edges sell scale;
+    // they avoid the center lane so the player can read jumps and landings.
+    for(let side=0;side<2;side++){
+      for(let i=0;i<3;i++){
+        const seed=3300+side*113+i*23+Math.floor(runHeight/460)*7;
+        const edge=side===0?viewW*(.015+noise(seed)*.12):viewW*(.865+noise(seed)*.12);
+        const y=vh*(.08+noise(seed+1)*.82);
+        const span=viewW*(.035+noise(seed+2)*(.055+rupture*.06));
+        const height=vh*(.045+noise(seed+3)*(.06+rupture*.05));
+        const wobble=Math.sin(elapsed*.14+seed)*4;
+        ctx.save();
+        // soft shadow halo just behind the cut
+        const halo=ctx.createRadialGradient(edge,y,1,edge,y,span*1.9);
+        halo.addColorStop(0,`rgba(3,6,17,${.28+rupture*.20})`);
+        halo.addColorStop(.55,`rgba(5,12,28,${.15+rupture*.12})`);
+        halo.addColorStop(1,'rgba(4,8,20,0)');
+        ctx.fillStyle=halo;ctx.fillRect(edge-span*2,y-height*2,span*4,height*4);
+        ctx.beginPath();
+        ctx.moveTo(edge-span*.45,y-height*.58);
+        ctx.lineTo(edge+span*.28+wobble,y-height*.72);
+        ctx.lineTo(edge+span*.70,y-height*.12);
+        ctx.lineTo(edge+span*.35,y+height*.20);
+        ctx.lineTo(edge+span*.62,y+height*.63);
+        ctx.lineTo(edge-span*.18,y+height*.48);
+        ctx.lineTo(edge-span*.70,y+height*.12);
+        ctx.closePath();
+        ctx.fillStyle=`rgba(1,4,13,${.45+rupture*.25})`;ctx.fill();
+        ctx.strokeStyle=`rgba(48,165,194,${.14+rupture*.16})`;ctx.lineWidth=1.1;ctx.stroke();
+        // detached, offset edge glint makes the void feel like a torn layer, not a drawn bolt
+        ctx.beginPath();
+        ctx.moveTo(edge+span*.28,y-height*.72);
+        ctx.lineTo(edge+span*.70,y-height*.12);
+        ctx.lineTo(edge+span*.35,y+height*.20);
+        ctx.strokeStyle=`rgba(105,222,240,${.12+rupture*.16})`;ctx.lineWidth=1.4;ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // A rare, low-frequency world pulse: the environment briefly loses a little contrast,
+    // as if the surrounding space has skipped a frame. No full-screen white flash.
+    const cycle=12.5, phase=(elapsed%cycle)/cycle;
+    if(phase>.47&&phase<.56){
+      const pulse=Math.sin(Math.PI*(phase-.47)/.09);
+      ctx.fillStyle=`rgba(90,180,218,${pulse*(.012+rupture*.018)})`;
+      ctx.fillRect(0,0,viewW,vh);
+      const bandY=vh*(.18+noise(Math.floor(elapsed/cycle)*17)*.62);
+      ctx.fillStyle=`rgba(1,5,14,${pulse*(.10+rupture*.10)})`;
+      ctx.fillRect(0,bandY,viewW,vh*.012);
+    }
+  }
+
   // World objects: detailed industrial ledges and climbable power conduits.
   ctx.save();
   ctx.translate(0,-cam);
