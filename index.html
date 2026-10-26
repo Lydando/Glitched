@@ -322,8 +322,7 @@ function makeReachablePlatform(source,y,pw,usedZones,step){
     const x=reachablePlatformX(source,pw,step,hint,y);
     if(x!==null)return addPlatform(x,y,pw,Math.random()<.10?'unstable':'solid',true);
   }
-  // Last-resort safe fallback: search broad positions and preserve the no-stack rule.
-  const bounds=arenaBoundsAt(y), edge=bounds.left+10;
+  // Last-resort safe fallback: reuse the bounds calculated above.
   const maxX=Math.max(edge,bounds.right-pw-10);
   for(let i=0;i<180;i++){
     const x=rand(edge,maxX);
