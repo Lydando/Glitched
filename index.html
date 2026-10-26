@@ -905,7 +905,7 @@ function draw(){
       const bw=66+noise(seed+1)*78;
       const bh=270+noise(seed+2)*330;
       const y=vh-bh+off;
-      const alpha=.68-fracture*.35;
+      const alpha=.42-fracture*.24;
       ctx.fillStyle=`rgba(7,16,30,${alpha})`;
       ctx.fillRect(x,y,bw,bh);
       // Offset facade face and heavy corner columns.
@@ -922,7 +922,7 @@ function draw(){
           const wx=x+10+c*12;
           const n=noise(seed+r*19+c*7);
           ctx.fillStyle=`rgba(0,4,12,${.82})`;ctx.fillRect(wx,wy,7,11);
-          ctx.fillStyle=`rgba(31,69,88,${.55})`;ctx.fillRect(wx+1,wy+1,5,1);
+          ctx.fillStyle=`rgba(31,69,88,${.38})`;ctx.fillRect(wx+1,wy+1,5,1);
           if(n>.72){
             const lit=noise(seed+500+r*13+c*5)>.3;
             ctx.fillStyle=lit
@@ -1446,6 +1446,67 @@ function draw(){
       ctx.fillStyle=`rgba(1,5,14,${pulse*(.10+rupture*.10)})`;
       ctx.fillRect(0,bandY,viewW,vh*.012);
     }
+  }
+
+  // COLOSSAL RUIN SILHOUETTES
+  // A small number of monumental forms replace the feeling of an endless office-wall pattern.
+  // Everything stays behind the gameplay geometry and scales with the mobile viewport.
+  {
+    const alt=clamp(runHeight/15000,0,1);
+    const fade=1-clamp((runHeight-10000)/9000,0,.42);
+    const cx=viewW*.51, base=vh*1.02, span=viewW*.47, crownY=vh*.13;
+    ctx.save();
+    // Distant ring: a gigantic broken transit/temple arch, mostly silhouette with a thin rim light.
+    ctx.beginPath();
+    ctx.moveTo(cx-span,base);
+    ctx.lineTo(cx-span*.96,vh*.53);
+    ctx.bezierCurveTo(cx-span*.94,vh*.20,cx-span*.55,crownY,cx,vh*.10);
+    ctx.bezierCurveTo(cx+span*.58,crownY*.88,cx+span*.98,vh*.24,cx+span, vh*.54);
+    ctx.lineTo(cx+span*.98,base);
+    ctx.lineTo(cx+span*.87,base);
+    ctx.lineTo(cx+span*.87,vh*.55);
+    ctx.bezierCurveTo(cx+span*.85,vh*.31,cx+span*.48,vh*.18,cx,vh*.18);
+    ctx.bezierCurveTo(cx-span*.48,vh*.18,cx-span*.84,vh*.32,cx-span*.85,vh*.55);
+    ctx.lineTo(cx-span*.85,base);ctx.closePath();
+    ctx.fillStyle=`rgba(2,8,18,${.40+alt*.15})`;ctx.fill();
+    ctx.strokeStyle=`rgba(47,141,168,${(.17+alt*.04)*fade})`;ctx.lineWidth=2.2;ctx.stroke();
+    // Broken crown gap: two luminous cuts imply the structure continues beyond the screen.
+    ctx.strokeStyle=`rgba(83,211,231,${(.18+alt*.08)*fade})`;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx-span*.53,vh*.22);ctx.lineTo(cx-span*.43,vh*.17);ctx.lineTo(cx-span*.31,vh*.16);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+span*.35,vh*.16);ctx.lineTo(cx+span*.48,vh*.19);ctx.lineTo(cx+span*.54,vh*.24);ctx.stroke();
+
+    // Huge offset monoliths at varying depth, with narrow lit seams rather than window grids.
+    for(let side=0;side<2;side++){
+      const x=side===0?viewW*.08:viewW*.79;
+      const w=viewW*(.10+noise(14200+side)*.055);
+      const top=vh*(.17+noise(14210+side)*.20);
+      ctx.fillStyle=`rgba(2,7,16,${.48+alt*.14})`;
+      ctx.beginPath();
+      ctx.moveTo(x,top+18);ctx.lineTo(x+w*.14,top);ctx.lineTo(x+w,top+vh*.035);
+      ctx.lineTo(x+w*.84,base);ctx.lineTo(x-w*.05,base);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(43,130,157,${(.15+alt*.08)*fade})`;ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(x+w*.16,top+vh*.04);ctx.lineTo(x+w*.13,base);ctx.stroke();
+      ctx.strokeStyle=`rgba(91,216,235,${(.10+alt*.05)*fade})`;ctx.lineWidth=1;
+      for(let seam=0;seam<3;seam++){
+        const sy=top+vh*(.10+seam*.19);
+        ctx.beginPath();ctx.moveTo(x+w*.18,sy);ctx.lineTo(x+w*(.58+noise(14220+side*5+seam)*.28),sy+vh*.012);ctx.stroke();
+      }
+      // Floating disconnected cap hints that the architecture has begun to detach from reality.
+      if(side===0){
+        ctx.fillStyle=`rgba(3,10,21,${.60+alt*.12})`;
+        ctx.beginPath();ctx.moveTo(x-w*.12,top-vh*.035);ctx.lineTo(x+w*.58,top-vh*.05);
+        ctx.lineTo(x+w*.76,top-vh*.025);ctx.lineTo(x+w*.05,top-vh*.008);ctx.closePath();ctx.fill();
+        ctx.strokeStyle=`rgba(61,188,210,${.20*fade})`;ctx.stroke();
+      }
+    }
+    // A soft shaft spills through the arch's opening, making the silhouette readable on phone screens.
+    const beam=ctx.createLinearGradient(cx, vh*.18, cx, base);
+    beam.addColorStop(0,'rgba(78,190,226,0)');
+    beam.addColorStop(.32,`rgba(58,157,205,${.035+alt*.018})`);
+    beam.addColorStop(.72,`rgba(44,126,179,${.025+alt*.015})`);
+    beam.addColorStop(1,'rgba(9,28,51,0)');
+    ctx.fillStyle=beam;ctx.fillRect(cx-span*.48,vh*.18,span*.96,base-vh*.18);
+    ctx.restore();
   }
 
   // World objects: detailed industrial ledges and climbable power conduits.
