@@ -830,96 +830,162 @@ function draw(){
   const vh=562;
   const cam=cameraY;
 
-  // VISUAL RESET: Eclipsed Server slowly descends into the Corrupted Core.
-  // Abstract machine-cathedral; no city skyline, no lightning rips, no crawling roots.
-  const altitude=clamp(runHeight/18000,0,1);
-  const core=clamp((runHeight-8500)/6500,0,1);
-  const decay=altitude, fracture=core, voidness=core, upper=altitude, highVoid=core, atmosphericDensity=.82*(1-altitude)+.24*altitude+.10*core;
-  const noise=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
-  const mix=(a,b,t)=>a+(b-a)*t;
-  const color=(a,b,t)=>`rgb(${Math.round(mix(a[0],b[0],t))},${Math.round(mix(a[1],b[1],t))},${Math.round(mix(a[2],b[2],t))})`;
-  let bg=ctx.createLinearGradient(0,0,viewW*.12,vh);
-  bg.addColorStop(0,color([2,5,14],[1,1,7],core));
-  bg.addColorStop(.5,color([8,17,34],[13,5,25],core));
-  bg.addColorStop(1,color([13,23,40],[25,5,23],core));
-  ctx.fillStyle=bg;ctx.fillRect(0,0,viewW,vh);
+  // CELESTIAL EXPANSE — procedural monumental architecture, crystal and cloud layers.
+  // Intentionally all local Canvas art: no external image assets.
+  {
+    const celAlt=clamp(runHeight/22000,0,1);
+    const celBloom=ctx.createLinearGradient(0,0,viewW*.18,vh);
+    celBloom.addColorStop(0,"#1764b7");
+    celBloom.addColorStop(.32,"#7ecfff");
+    celBloom.addColorStop(.63,"#d8f3ff");
+    celBloom.addColorStop(1,"#5a9de0");
+    ctx.fillStyle=celBloom;ctx.fillRect(0,0,viewW,vh);
 
-  // Deep space: sparse motes, no noisy star field.
-  for(let i=0;i<125;i++){
-    const s=1400+i*17.13,x=noise(s)*viewW,y=(noise(s+1)*vh+elapsed*(1+noise(s+2)*2))%vh;
-    ctx.fillStyle=i%9===0?`rgba(237,204,153,${.07+noise(s+3)*.14})`:`rgba(164,193,224,${.06+noise(s+3)*.16})`;
-    ctx.fillRect(x,y,noise(s+4)>.95?2:1,noise(s+5)>.8?2:1);
-  }
+    const celRand=n=>{const z=Math.sin(n*127.1+311.7)*43758.5453;return z-Math.floor(z);};
+    const celMix=(a,b,t)=>a+(b-a)*t;
+    const celRGB=(a,b,t,alpha=1)=>`rgba(${Math.round(celMix(a[0],b[0],t))},${Math.round(celMix(a[1],b[1],t))},${Math.round(celMix(a[2],b[2],t))},${alpha})`;
 
-  // Colossal halo architecture: double arcs and interrupted orbital rings.
-  for(let layer=0;layer<3;layer++){
-    const parallax=[.025,.065,.13][layer];
-    for(let i=0;i<(layer===0?3:2);i++){
-      const s=500+layer*81+i*43,cx=viewW*(.12+noise(s)*.76);
-      const cy=vh*(.14+noise(s+1)*.72)+((cam*parallax)%760);
-      const rx=viewW*(.15+noise(s+2)*(.12+layer*.025)),ry=rx*(.48+noise(s+3)*.22);
-      const a=[.055,.095,.15][layer];
-      ctx.save();ctx.translate(cx,cy);ctx.rotate((noise(s+4)-.5)*.22);
-      ctx.strokeStyle=`rgba(137,164,199,${a})`;ctx.lineWidth=layer===0?.7:1;
-      ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,.12,Math.PI*1.76);ctx.stroke();
-      ctx.strokeStyle=`rgba(224,191,143,${a*.62*(1-core)+.015*core})`;
-      ctx.beginPath();ctx.ellipse(0,0,rx*.96,ry*.94,0,Math.PI*1.1,Math.PI*1.92);ctx.stroke();
-      for(let k=0;k<7;k++){const t=k*Math.PI*2/7+noise(s+k)*.12,px=Math.cos(t)*rx,py=Math.sin(t)*ry;
-        ctx.fillStyle=k%3===0?`rgba(237,204,153,${a})`:`rgba(124,211,228,${a})`;ctx.fillRect(px-1,py-1,2,2);}
+    // Sunlit cloud sea: broad soft masses, layered at distinct parallax speeds.
+    for(let layer=0;layer<4;layer++){
+      const speed=[.025,.055,.105,.17][layer],count=[7,9,11,13][layer];
+      for(let i=0;i<count;i++){
+        const seed=700+layer*211+i*19;
+        const x=((celRand(seed)*viewW*1.5-viewW*.22+Math.sin(elapsed*.035+i)*viewW*.018)% (viewW*1.5)+viewW*1.5)%(viewW*1.5)-viewW*.18;
+        const y=(celRand(seed+1)*vh+cam*speed+elapsed*(2+layer))%(vh+180)-90;
+        const rx=(viewW*(.055+celRand(seed+2)*.12))*(.7+layer*.18),ry=rx*(.22+celRand(seed+3)*.18);
+        const haze=ctx.createRadialGradient(x,y,rx*.04,x,y,rx);
+        haze.addColorStop(0,layer===0?"rgba(255,255,255,.18)":"rgba(244,251,255,.14)");
+        haze.addColorStop(.48,"rgba(226,245,255,.09)");haze.addColorStop(1,"rgba(220,241,255,0)");
+        ctx.fillStyle=haze;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();
+        // Scalloped cloud tops give the soft haze a readable silhouette.
+        ctx.beginPath();
+        for(let k=0;k<7;k++){
+          const px=x-rx+k*rx/3,py=y+Math.sin(k*1.37+seed)*ry*.34;
+          if(k===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+          ctx.quadraticCurveTo(px+rx*.07,py-ry*(.45+celRand(seed+k)*.45),px+rx/6,py);
+        }
+        ctx.strokeStyle=`rgba(255,255,255,${.035+layer*.012})`;ctx.lineWidth=1.5;ctx.stroke();
+      }
+    }
+
+    // Distant floating sanctuaries: fine silhouettes with no box-shaped building slabs.
+    for(let layer=0;layer<3;layer++){
+      const count=[10,7,5][layer],par=[.035,.085,.16][layer],alpha=[.13,.22,.34][layer];
+      for(let i=0;i<count;i++){
+        const seed=1200+layer*900+i*47;
+        const x=celRand(seed)*viewW*1.22-viewW*.11;
+        const y=(celRand(seed+1)*(vh+220)+cam*par)%(vh+220)-110;
+        const w=viewW*(.035+celRand(seed+2)*(.065+layer*.015));
+        const h=w*(.22+celRand(seed+3)*.48);
+        ctx.save();ctx.translate(x,y);
+        // Floating island underside, tapering to a fractured point.
+        ctx.beginPath();ctx.moveTo(-w*.55,0);ctx.lineTo(w*.52,0);ctx.lineTo(w*.34,h*.28);
+        ctx.lineTo(w*.08,h*.72);ctx.lineTo(-w*.1,h*.43);ctx.lineTo(-w*.42,h*.32);ctx.closePath();
+        ctx.fillStyle=`rgba(32,82,137,${alpha*.42})`;ctx.fill();
+        ctx.strokeStyle=`rgba(235,249,255,${alpha*.7})`;ctx.lineWidth=layer===2?1.2:.7;ctx.stroke();
+        // Ivory terrace, gold cornice and small arched colonnades.
+        ctx.beginPath();ctx.moveTo(-w*.58,0);ctx.lineTo(-w*.43,-h*.12);ctx.lineTo(w*.42,-h*.12);ctx.lineTo(w*.58,0);ctx.closePath();
+        ctx.fillStyle=celRGB([92,172,228],[255,250,224],layer*.42,alpha+.12);ctx.fill();
+        ctx.strokeStyle=`rgba(255,222,139,${alpha*.9})`;ctx.lineWidth=1.15;ctx.stroke();
+        const towers=2+Math.floor(celRand(seed+4)*4);
+        for(let k=0;k<towers;k++){
+          const tx=-w*.4+k*(w*.8/Math.max(1,towers-1)),th=h*(.3+celRand(seed+k+5)*.65),tw=Math.max(2,w*.045);
+          ctx.fillStyle=`rgba(240,249,255,${alpha*.75})`;ctx.fillRect(tx-tw/2,-th,tw,th);
+          ctx.strokeStyle=`rgba(255,221,145,${alpha*.8})`;ctx.lineWidth=.65;
+          ctx.beginPath();ctx.moveTo(tx-tw,-th);ctx.quadraticCurveTo(tx,-th-tw*1.7,tx+tw,-th);ctx.stroke();
+          ctx.fillStyle=`rgba(73,205,255,${alpha*.9})`;ctx.fillRect(tx-tw*.22,-th*.78,tw*.44,Math.max(1,th*.13));
+        }
+        // A few gold ring fragments around larger, closer islands.
+        if(layer===2){
+          ctx.strokeStyle=`rgba(255,218,135,${alpha*.65})`;ctx.lineWidth=1;
+          ctx.beginPath();ctx.ellipse(0,-h*.2,w*.73,h*.42,-.12,-.15,Math.PI*.86);ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // Monumental orbital rings, cropped by the viewport to imply impossible scale.
+    for(let i=0;i<4;i++){
+      const seed=2400+i*113,cx=viewW*(.08+celRand(seed)*.84);
+      const cy=(vh*(.15+celRand(seed+1)*.75)+cam*[.018,.032,.052,.075][i])%(vh+vh*.6)-vh*.3;
+      const rx=viewW*(.22+celRand(seed+2)*.32),ry=rx*(.34+celRand(seed+3)*.22),rot=(celRand(seed+4)-.5)*.65;
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
+      ctx.strokeStyle="rgba(255,220,145,.15)";ctx.lineWidth=7+i*1.5;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,.15,Math.PI*1.68);ctx.stroke();
+      ctx.strokeStyle="rgba(255,248,222,.72)";ctx.lineWidth=1.7;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,.15,Math.PI*1.68);ctx.stroke();
+      ctx.strokeStyle="rgba(72,184,255,.46)";ctx.lineWidth=2.4;ctx.beginPath();ctx.ellipse(0,0,rx-5,ry-2,0,Math.PI*.18,Math.PI*.87);ctx.stroke();
+      // Articulated engraved ticks along the ring.
+      for(let k=0;k<36;k++){
+        const a=k*Math.PI*2/36,px=Math.cos(a)*rx,py=Math.sin(a)*ry;
+        ctx.save();ctx.translate(px,py);ctx.rotate(a);
+        ctx.strokeStyle=k%3===0?"rgba(255,225,157,.75)":"rgba(255,255,255,.34)";
+        ctx.lineWidth=k%3===0?1.5:.7;ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(3,0);ctx.stroke();ctx.restore();
+      }
       ctx.restore();
     }
-  }
 
-  // Floating monoliths and broken server-slab ruins. Three parallax depths,
-  // asymmetrical silhouettes, inset channels and small warm/cool signal points.
-  for(let layer=0;layer<3;layer++){
-    const parallax=[.07,.16,.29][layer],step=[255,330,420][layer];
-    for(let i=-1;i<Math.ceil(viewW/step)+2;i++){
-      const s=3000+layer*1000+i*37,x=i*step+(noise(s)-.5)*step*.38;
-      const h=[300,215,145][layer]+noise(s+1)*[210,175,120][layer];
-      const w=[90,58,36][layer]+noise(s+2)*[110,90,60][layer];
-      const y=vh-h+((noise(s+3)*760+cam*parallax)%760),a=[.10,.18,.29][layer];
-      ctx.save();ctx.fillStyle=`rgba(4,8,19,${a+.12})`;
-      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y-9);ctx.lineTo(x+w+13,y+6);ctx.lineTo(x+w+13,y+h-16);ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h-11);ctx.closePath();ctx.fill();
-      ctx.strokeStyle=`rgba(137,163,194,${a*.9})`;ctx.lineWidth=layer===0?1.1:.75;
-      ctx.beginPath();ctx.moveTo(x,y+8);ctx.lineTo(x,y+h-11);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w,y+2);ctx.stroke();
-      ctx.strokeStyle=`rgba(218,190,148,${a*.52*(1-core)+.02*core})`;
-      ctx.beginPath();ctx.moveTo(x+5,y+18);ctx.lineTo(x+w*.36,y+18);ctx.moveTo(x+w*.62,y+h*.3);ctx.lineTo(x+w*.9,y+h*.3);ctx.stroke();
-      for(let k=0;k<3;k++){const px=x+8+noise(s+k+4)*Math.max(3,w-16),py=y+24+noise(s+k+8)*Math.max(10,h-48);
-        ctx.fillStyle=k===0?`rgba(231,197,151,${a*.8})`:`rgba(104,211,228,${a*.8})`;ctx.fillRect(px,py,3+noise(s+k+12)*7,1);}
-      if(layer>0&&noise(s+18)>.52){const cy=y+h*(.35+noise(s+19)*.4),cw=w*(.2+noise(s+20)*.25);
-        ctx.fillStyle=color([3,7,18],[12,3,23],core);ctx.fillRect(x+w*.42,cy,cw,4+noise(s+21)*7);}
+    // Hero crystals: layered polygon facets, bright cores, rim refraction and suspended shards.
+    const celCrystal=(x,y,w,h,seed,alpha)=>{
+      ctx.save();ctx.translate(x,y);
+      const lean=(celRand(seed)-.5)*w*.25;
+      ctx.beginPath();ctx.moveTo(0,-h*.58);ctx.lineTo(w*.34,-h*.24);ctx.lineTo(w*.5,h*.12);
+      ctx.lineTo(w*.12,h*.58);ctx.lineTo(-w*.27,h*.35);ctx.lineTo(-w*.48,-h*.08);ctx.closePath();
+      const cg=ctx.createLinearGradient(-w*.5,-h*.2,w*.5,h*.25);
+      cg.addColorStop(0,`rgba(220,251,255,${alpha})`);cg.addColorStop(.3,`rgba(45,170,255,${alpha*.92})`);
+      cg.addColorStop(.64,`rgba(15,85,218,${alpha*.88})`);cg.addColorStop(1,`rgba(174,239,255,${alpha*.9})`);
+      ctx.fillStyle=cg;ctx.fill();ctx.strokeStyle=`rgba(226,251,255,${alpha})`;ctx.lineWidth=1.2;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,-h*.58);ctx.lineTo(w*.04,h*.03);ctx.lineTo(-w*.27,h*.35);ctx.closePath();
+      ctx.fillStyle=`rgba(255,255,255,${alpha*.55})`;ctx.fill();
+      ctx.beginPath();ctx.moveTo(0,-h*.58);ctx.lineTo(w*.34,-h*.24);ctx.lineTo(w*.04,h*.03);ctx.closePath();
+      ctx.fillStyle=`rgba(106,221,255,${alpha*.65})`;ctx.fill();
+      ctx.beginPath();ctx.moveTo(w*.04,h*.03);ctx.lineTo(w*.5,h*.12);ctx.lineTo(w*.12,h*.58);ctx.closePath();
+      ctx.fillStyle=`rgba(7,69,187,${alpha*.65})`;ctx.fill();
+      ctx.strokeStyle=`rgba(255,255,255,${alpha*.7})`;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(lean,-h*.38);ctx.lineTo(w*.04,h*.03);ctx.lineTo(w*.12,h*.47);ctx.stroke();
+      const glow=ctx.createRadialGradient(0,0,1,0,0,w*.95);glow.addColorStop(0,`rgba(72,203,255,${alpha*.22})`);glow.addColorStop(1,"rgba(72,203,255,0)");
+      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(0,0,w*.95,0,Math.PI*2);ctx.fill();ctx.restore();
+    };
+    // Two large cropped crystals plus a field of smaller shards.
+    celCrystal(viewW*.28,vh*.22,viewW*.085,vh*.31,3301,.95);
+    celCrystal(viewW*.81,vh*.62,viewW*.042,vh*.19,3302,.8);
+    for(let i=0;i<19;i++){
+      const seed=3500+i*23,x=celRand(seed)*viewW;
+      const y=(celRand(seed+1)*vh+cam*(.025+celRand(seed+2)*.11))%(vh+100)-50;
+      const size=viewW*(.004+celRand(seed+3)*.012);
+      ctx.save();ctx.translate(x,y);ctx.rotate((celRand(seed+4)-.5)*1.4);
+      celCrystal(0,0,size,size*(2.1+celRand(seed+5)*2.2),seed,.34+celRand(seed+6)*.48);ctx.restore();
+    }
+
+    // Foreground architecture framing the play area: ornate ivory-and-gold arch fragments.
+    for(let side=0;side<2;side++){
+      const x=side===0?viewW*.035:viewW*.965,sgn=side===0?1:-1;
+      ctx.save();ctx.translate(x,0);ctx.scale(sgn,1);
+      ctx.strokeStyle="rgba(255,245,218,.45)";ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(0,-vh*.1);ctx.bezierCurveTo(viewW*.025,vh*.12,viewW*.012,vh*.25,viewW*.035,vh*.37);
+      ctx.bezierCurveTo(viewW*.06,vh*.53,viewW*.018,vh*.73,viewW*.045,vh*1.1);ctx.stroke();
+      ctx.strokeStyle="rgba(255,212,122,.72)";ctx.lineWidth=1.15;
+      ctx.beginPath();ctx.moveTo(4,-vh*.1);ctx.bezierCurveTo(viewW*.029,vh*.12,viewW*.016,vh*.25,viewW*.039,vh*.37);
+      ctx.bezierCurveTo(viewW*.064,vh*.53,viewW*.022,vh*.73,viewW*.049,vh*1.1);ctx.stroke();
+      for(let k=0;k<7;k++){
+        const y=vh*(k/6)-((cam*.12)%vh),yy=(y+vh)%vh;
+        ctx.fillStyle="rgba(255,238,194,.72)";ctx.beginPath();ctx.moveTo(0,yy-8);ctx.lineTo(8,yy);ctx.lineTo(0,yy+8);ctx.closePath();ctx.fill();
+        ctx.fillStyle="rgba(72,204,255,.8)";ctx.fillRect(5,yy-2,4,4);
+      }
       ctx.restore();
     }
+
+    // Wide feathered sunbeams, brightest near the heavenly architecture.
+    for(let i=0;i<7;i++){
+      const x=viewW*(.04+i*.155),lean=(celRand(5000+i)-.5)*viewW*.19,w=viewW*(.035+celRand(5100+i)*.055);
+      const beam=ctx.createLinearGradient(x,0,x+lean,vh);
+      beam.addColorStop(0,"rgba(255,255,255,0)");beam.addColorStop(.2,"rgba(255,255,244,.11)");
+      beam.addColorStop(.5,"rgba(210,240,255,.055)");beam.addColorStop(1,"rgba(255,255,255,0)");
+      ctx.beginPath();ctx.moveTo(x-w,0);ctx.lineTo(x+w,0);ctx.lineTo(x+lean+w*1.3,vh);ctx.lineTo(x+lean-w*.6,vh);ctx.closePath();ctx.fillStyle=beam;ctx.fill();
+    }
+
+    // Subtle edge falloff keeps the playable area readable without dimming the sky.
+    const celV=ctx.createRadialGradient(viewW*.5,vh*.42,viewW*.1,viewW*.5,vh*.42,viewW*.78);
+    celV.addColorStop(0,"rgba(8,34,82,0)");celV.addColorStop(.72,"rgba(8,34,82,.06)");celV.addColorStop(1,"rgba(4,24,65,.26)");
+    ctx.fillStyle=celV;ctx.fillRect(0,0,viewW,vh);
   }
-
-  // Eclipse bloom: antique gold in the vault gives way to violet in the Core.
-  const cx=viewW*.52,cy=vh*.43,r=Math.min(viewW*.4,vh*.68);
-  const eclipse=ctx.createRadialGradient(cx,cy,r*.08,cx,cy,r*1.3);
-  eclipse.addColorStop(0,`rgba(3,5,15,${.04+core*.2})`);
-  eclipse.addColorStop(.58,`rgba(3,5,15,${.03+core*.15})`);
-  eclipse.addColorStop(.7,`rgba(221,190,145,${.05*(1-core)+.012})`);
-  eclipse.addColorStop(.73,`rgba(145,148,190,${.035+core*.07})`);
-  eclipse.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=eclipse;ctx.fillRect(0,0,viewW,vh);
-  ctx.strokeStyle=`rgba(222,194,153,${.08*(1-core)})`;ctx.lineWidth=1;
-  ctx.beginPath();ctx.ellipse(cx,cy,r,r*.57,0,.12,Math.PI*1.78);ctx.stroke();
-
-  // Broad, feathered light shafts. Gold drains away as violet takes over.
-  for(let i=0;i<5;i++){
-    const s=9000+i*31.7,x=viewW*(.08+noise(s)*.84),lean=(noise(s+1)-.5)*viewW*.13;
-    const width=viewW*(.05+noise(s+2)*.06),tint=core>.48?'151,111,211':'214,186,139';
-    const alpha=.022+noise(s+3)*.018,beam=ctx.createLinearGradient(x,0,x+lean,vh);
-    beam.addColorStop(0,'rgba(0,0,0,0)');beam.addColorStop(.25,`rgba(${tint},${alpha})`);
-    beam.addColorStop(.58,`rgba(${tint},${alpha*.52})`);beam.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.beginPath();ctx.moveTo(x-width,0);ctx.lineTo(x+width,0);ctx.lineTo(x+lean+width*1.4,vh);ctx.lineTo(x+lean-width*.6,vh);ctx.closePath();ctx.fillStyle=beam;ctx.fill();
-  }
-
-  // Atmospheric framing, without the old blue wash or magenta corruption rips.
-  const vignette=ctx.createRadialGradient(viewW*.5,vh*.46,viewW*.12,viewW*.5,vh*.46,viewW*.82);
-  vignette.addColorStop(0,'rgba(0,0,0,0)');vignette.addColorStop(.58,`rgba(0,0,4,${.15+core*.12})`);
-  vignette.addColorStop(1,`rgba(0,0,5,${.62+core*.12})`);
-  ctx.fillStyle=vignette;ctx.fillRect(0,0,viewW,vh);
 
   // Side rails.
   for(let x of [24,world.width-48]){
