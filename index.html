@@ -1048,11 +1048,11 @@ function draw(){
   for(let side=0;side<2;side++){
     const edge=side===0?0:viewW, inward=side===0?1:-1;
     for(let i=0;i<4;i++){
-      const seed=7100+side*71+i*13, y=noise(seed)*vh, h=120+noise(seed+1)*220, reach=28+noise(seed+2)*68;
+      const seed=7100+side*71+i*13, y=noise(seed)*vh, h=170+noise(seed+1)*280, reach=54+noise(seed+2)*104;
       const x=edge+inward*(noise(seed+3)*12-4);
       const grad=ctx.createLinearGradient(x,0,x+inward*reach,0);
-      grad.addColorStop(0,`rgba(2,7,17,${.88-voidness*.12})`);
-      grad.addColorStop(.55,`rgba(7,19,32,${.78-fracture*.18})`);
+      grad.addColorStop(0,`rgba(2,7,17,${.94-voidness*.10})`);
+      grad.addColorStop(.55,`rgba(7,19,32,${.84-fracture*.12})`);
       grad.addColorStop(1,'rgba(8,25,39,0)');
       ctx.fillStyle=grad;ctx.beginPath();
       ctx.moveTo(x,y-h*.5);
@@ -1063,7 +1063,7 @@ function draw(){
       ctx.lineTo(x+inward*(reach*.72),y+h*.5);
       ctx.lineTo(x,y+h*.42);ctx.closePath();ctx.fill();
       // Broken inner lip catches a thin cyan reflection, interrupted by damage.
-      ctx.strokeStyle=`rgba(65,190,211,${.10+fracture*.10})`;ctx.lineWidth=1;
+      ctx.strokeStyle=`rgba(65,190,211,${.16+fracture*.13})`;ctx.lineWidth=1.2;
       ctx.beginPath();ctx.moveTo(x+inward*2,y-h*.32);ctx.lineTo(x+inward*(reach*.28),y-h*.12);
       ctx.lineTo(x+inward*(reach*.22),y+h*.03);ctx.stroke();
       if(i%2===0){
@@ -1076,10 +1076,10 @@ function draw(){
   // A few distant suspended slabs create scale; keep the centre lane open.
   for(let i=0;i<5;i++){
     const seed=7600+i*17, x=viewW*(.12+noise(seed)*.76), y=vh*(.10+noise(seed+1)*.42);
-    const w=24+noise(seed+2)*72, h=4+noise(seed+3)*10;
-    ctx.fillStyle=`rgba(3,10,20,${.24+noise(seed+4)*.22})`;
+    const w=34+noise(seed+2)*92, h=6+noise(seed+3)*13;
+    ctx.fillStyle=`rgba(3,10,20,${.34+noise(seed+4)*.24})`;
     ctx.beginPath();ctx.moveTo(x-w*.5,y);ctx.lineTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.lineTo(x+w*.42,y+h);ctx.closePath();ctx.fill();
-    ctx.strokeStyle=`rgba(67,171,193,${.08+noise(seed+5)*.09})`;ctx.lineWidth=1;
+    ctx.strokeStyle=`rgba(67,171,193,${.13+noise(seed+5)*.12})`;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.stroke();
   }
   ctx.restore();
