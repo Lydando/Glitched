@@ -890,47 +890,6 @@ function draw(){
     ctx.fillStyle=sg;ctx.fillRect(sx,0,sw,vh);
   }
 
-  // Signature framing architecture: broken monolithic ribs and hanging ruined overhangs.
-  // These irregular silhouettes give the shaft a designed composition instead of a flat window grid.
-  ctx.save();
-  for(let side=0;side<2;side++){
-    const edge=side===0?0:viewW, inward=side===0?1:-1;
-    for(let i=0;i<4;i++){
-      const seed=7100+side*71+i*13, y=noise(seed)*vh, h=120+noise(seed+1)*220, reach=28+noise(seed+2)*68;
-      const x=edge+inward*(noise(seed+3)*12-4);
-      const grad=ctx.createLinearGradient(x,0,x+inward*reach,0);
-      grad.addColorStop(0,`rgba(2,7,17,${.88-voidness*.12})`);
-      grad.addColorStop(.55,`rgba(7,19,32,${.78-fracture*.18})`);
-      grad.addColorStop(1,'rgba(8,25,39,0)');
-      ctx.fillStyle=grad;ctx.beginPath();
-      ctx.moveTo(x,y-h*.5);
-      ctx.lineTo(x+inward*(reach*.22),y-h*.5+12);
-      ctx.lineTo(x+inward*(reach*.48),y-h*.22);
-      ctx.lineTo(x+inward*(reach*.38),y+h*.04);
-      ctx.lineTo(x+inward*reach,y+h*.20);
-      ctx.lineTo(x+inward*(reach*.72),y+h*.5);
-      ctx.lineTo(x,y+h*.42);ctx.closePath();ctx.fill();
-      // Broken inner lip catches a thin cyan reflection, interrupted by damage.
-      ctx.strokeStyle=`rgba(65,190,211,${.10+fracture*.10})`;ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(x+inward*2,y-h*.32);ctx.lineTo(x+inward*(reach*.28),y-h*.12);
-      ctx.lineTo(x+inward*(reach*.22),y+h*.03);ctx.stroke();
-      if(i%2===0){
-        ctx.fillStyle=`rgba(1,5,13,${.72+voidness*.12})`;
-        ctx.beginPath();ctx.moveTo(x+inward*(reach*.25),y+h*.05);ctx.lineTo(x+inward*(reach*.52),y+h*.11);
-        ctx.lineTo(x+inward*(reach*.43),y+h*.28);ctx.lineTo(x+inward*(reach*.18),y+h*.24);ctx.closePath();ctx.fill();
-      }
-    }
-  }
-  // A few distant suspended slabs create scale; keep the centre lane open.
-  for(let i=0;i<5;i++){
-    const seed=7600+i*17, x=viewW*(.12+noise(seed)*.76), y=vh*(.10+noise(seed+1)*.42);
-    const w=24+noise(seed+2)*72, h=4+noise(seed+3)*10;
-    ctx.fillStyle=`rgba(3,10,20,${.24+noise(seed+4)*.22})`;
-    ctx.beginPath();ctx.moveTo(x-w*.5,y);ctx.lineTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.lineTo(x+w*.42,y+h);ctx.closePath();ctx.fill();
-    ctx.strokeStyle=`rgba(67,171,193,${.08+noise(seed+5)*.09})`;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.stroke();
-  }
-  ctx.restore();
   // Far towers: facade panels, floor bands, individual windows and antennae.
   ctx.save();ctx.translate(0,-((cam*.10)%cycle));
   for(let layer=-1;layer<2;layer++){
@@ -1078,6 +1037,47 @@ function draw(){
   }
   ctx.restore();
 
+  // Signature framing architecture: broken monolithic ribs and hanging ruined overhangs.
+  // These irregular silhouettes give the shaft a designed composition instead of a flat window grid.
+  ctx.save();
+  for(let side=0;side<2;side++){
+    const edge=side===0?0:viewW, inward=side===0?1:-1;
+    for(let i=0;i<4;i++){
+      const seed=7100+side*71+i*13, y=noise(seed)*vh, h=120+noise(seed+1)*220, reach=28+noise(seed+2)*68;
+      const x=edge+inward*(noise(seed+3)*12-4);
+      const grad=ctx.createLinearGradient(x,0,x+inward*reach,0);
+      grad.addColorStop(0,`rgba(2,7,17,${.88-voidness*.12})`);
+      grad.addColorStop(.55,`rgba(7,19,32,${.78-fracture*.18})`);
+      grad.addColorStop(1,'rgba(8,25,39,0)');
+      ctx.fillStyle=grad;ctx.beginPath();
+      ctx.moveTo(x,y-h*.5);
+      ctx.lineTo(x+inward*(reach*.22),y-h*.5+12);
+      ctx.lineTo(x+inward*(reach*.48),y-h*.22);
+      ctx.lineTo(x+inward*(reach*.38),y+h*.04);
+      ctx.lineTo(x+inward*reach,y+h*.20);
+      ctx.lineTo(x+inward*(reach*.72),y+h*.5);
+      ctx.lineTo(x,y+h*.42);ctx.closePath();ctx.fill();
+      // Broken inner lip catches a thin cyan reflection, interrupted by damage.
+      ctx.strokeStyle=`rgba(65,190,211,${.10+fracture*.10})`;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x+inward*2,y-h*.32);ctx.lineTo(x+inward*(reach*.28),y-h*.12);
+      ctx.lineTo(x+inward*(reach*.22),y+h*.03);ctx.stroke();
+      if(i%2===0){
+        ctx.fillStyle=`rgba(1,5,13,${.72+voidness*.12})`;
+        ctx.beginPath();ctx.moveTo(x+inward*(reach*.25),y+h*.05);ctx.lineTo(x+inward*(reach*.52),y+h*.11);
+        ctx.lineTo(x+inward*(reach*.43),y+h*.28);ctx.lineTo(x+inward*(reach*.18),y+h*.24);ctx.closePath();ctx.fill();
+      }
+    }
+  }
+  // A few distant suspended slabs create scale; keep the centre lane open.
+  for(let i=0;i<5;i++){
+    const seed=7600+i*17, x=viewW*(.12+noise(seed)*.76), y=vh*(.10+noise(seed+1)*.42);
+    const w=24+noise(seed+2)*72, h=4+noise(seed+3)*10;
+    ctx.fillStyle=`rgba(3,10,20,${.24+noise(seed+4)*.22})`;
+    ctx.beginPath();ctx.moveTo(x-w*.5,y);ctx.lineTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.lineTo(x+w*.42,y+h);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=`rgba(67,171,193,${.08+noise(seed+5)*.09})`;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x-w*.25,y-h);ctx.lineTo(x+w*.5,y-h*.55);ctx.stroke();
+  }
+  ctx.restore();
   // Foreground debris: irregular polygonal chunks, layered plates, bolt heads,
   // glowing fracture seams and dangling wires instead of floating rectangles.
   ctx.save();ctx.translate(0,-((cam*.43)%cycle));
